@@ -10,6 +10,7 @@ import CasEngineDashboard from "./components/CasEngineDashboard";
 import ClientsPage from "./pages/ClientsPage";
 import CasesPage from "./pages/CasesPage";
 import InvoicesPage from "./pages/InvoicesPage";
+import MattersPage from "./pages/MattersPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -20,6 +21,7 @@ function Router() {
       <Route path={\"/clients\"} component={ClientsPage} />
       <Route path={\"/cases\"} component={CasesPage} />
       <Route path={\"/invoices\"} component={InvoicesPage} />
+      <Route path={\"/matters\"} component={MattersPage} />
       <Route path={\"/404\"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
