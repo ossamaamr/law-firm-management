@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1771443460929,
+      "tag": "0000_nasty_mercury",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1771444829241,
+      "tag": "0001_living_wolverine",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1771445242698,
+      "tag": "0002_melodic_madame_masque",
+      "breakpoints": true
+    }
+  ]
+}
