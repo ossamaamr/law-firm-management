@@ -6,15 +6,21 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import Home from "./pages/Home";
-import { CasEngineDashboard } from "./components/CasEngineDashboard";
+import CasEngineDashboard from "./components/CasEngineDashboard";
+import ClientsPage from "./pages/ClientsPage";
+import CasesPage from "./pages/CasesPage";
+import InvoicesPage from "./pages/InvoicesPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={CasEngineDashboard} />
-      <Route path={"/dashboard"} component={CasEngineDashboard} />
-      <Route path={"/404"} component={NotFound} />
+      <Route path={\"\"} component={CasEngineDashboard} />
+      <Route path={\"/dashboard\"} component={CasEngineDashboard} />
+      <Route path={\"/clients\"} component={ClientsPage} />
+      <Route path={\"/cases\"} component={CasesPage} />
+      <Route path={\"/invoices\"} component={InvoicesPage} />
+      <Route path={\"/404\"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
@@ -30,10 +36,10 @@ function App() {
   return (
     <ErrorBoundary>
       <LanguageProvider>
-        <ThemeProvider
-          defaultTheme="light"
-          // switchable
-        >
+      <ThemeProvider
+        defaultTheme="light"
+        switchable
+      >
           <TooltipProvider>
             <Toaster />
             <Router />
