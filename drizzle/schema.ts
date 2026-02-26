@@ -348,6 +348,66 @@ export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
 /**
+ * Registration Requests - طلبات التسجيل المعلقة
+ */
+export const registrationRequests = mysqlTable("registrationRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  fullName: varchar("fullName", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  birthDate: timestamp("birthDate").notNull(),
+  firmName: varchar("firmName", { length: 255 }).notNull(),
+  licenseNumber: varchar("licenseNumber", { length: 100 }),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  country: varchar("country", { length: 100 }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  rejectionReason: text("rejectionReason"),
+  approvedById: int("approvedById"),
+  approvedAt: timestamp("approvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type RegistrationRequest = typeof registrationRequests.$inferSelect;
+export type InsertRegistrationRequest = typeof registrationRequests.$inferInsert;
+
+/**
+ * Firm Identifiers - المعرفات الفريدة للمكاتب
+ */
+export const firmIdentifiers = mysqlTable("firmIdentifiers", {
+  id: int("id").autoincrement().primaryKey(),
+  identifier: varchar("identifier", { length: 100 }).notNull().unique(),
+  firmId: int("firmId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type FirmIdentifier = typeof firmIdentifiers.$inferSelect;
+export type InsertFirmIdentifier = typeof firmIdentifiers.$inferInsert;
+
+/**
+ * Activity Logs - سجل النشاطات والتعديلات
+ */
+export const activityLogs = mysqlTable("activityLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  lawFirmId: int("lawFirmId").notNull(),
+  userId: int("userId").notNull(),
+  userName: varchar("userName", { length: 255 }).notNull(),
+  actionType: mysqlEnum("actionType", ["create", "update", "delete", "view", "export", "approve", "reject"]).notNull(),
+  entityType: varchar("entityType", { length: 50 }).notNull(),
+  entityId: int("entityId"),
+  entityName: varchar("entityName", { length: 255 }),
+  description: text("description"),
+  changes: json("changes"),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = typeof activityLogs.$inferInsert;
+
+/**
  * Audit Log - سجل التحديثات والعمليات
  */
 export const auditLogs = mysqlTable("auditLogs", {
