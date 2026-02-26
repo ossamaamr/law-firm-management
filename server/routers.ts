@@ -15,6 +15,7 @@ import {
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
+import { activityRouter } from "./activity.routes";
 import { COOKIE_NAME } from "@shared/const";
 
 // ============ PROCEDURES ============
@@ -39,6 +40,7 @@ const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 
 export const appRouter = router({
   system: systemRouter,
+  activity: activityRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
