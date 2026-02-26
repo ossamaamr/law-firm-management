@@ -11,18 +11,26 @@ import ClientsPage from "./pages/ClientsPage";
 import CasesPage from "./pages/CasesPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import MattersPage from "./pages/MattersPage";
+import SignupPage from "./pages/SignupPage";
+import LoginPage from "./pages/LoginPage";
+import AdminApprovalPage from "./pages/AdminApprovalPage";
+import ActivityTimelinePage from "./pages/ActivityTimelinePage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={\"\"} component={CasEngineDashboard} />
-      <Route path={\"/dashboard\"} component={CasEngineDashboard} />
-      <Route path={\"/clients\"} component={ClientsPage} />
-      <Route path={\"/cases\"} component={CasesPage} />
-      <Route path={\"/invoices\"} component={InvoicesPage} />
-      <Route path={\"/matters\"} component={MattersPage} />
-      <Route path={\"/404\"} component={NotFound} />
+      <Route path={""} component={CasEngineDashboard} />
+      <Route path={"/dashboard"} component={CasEngineDashboard} />
+      <Route path={"/login"} component={LoginPage} />
+      <Route path={"/signup"} component={SignupPage} />
+      <Route path={"/admin/approvals"} component={AdminApprovalPage} />
+      <Route path={"/activity"} component={ActivityTimelinePage} />
+      <Route path={"/clients"} component={ClientsPage} />
+      <Route path={"/cases"} component={CasesPage} />
+      <Route path={"/invoices"} component={InvoicesPage} />
+      <Route path={"/matters"} component={MattersPage} />
+      <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
