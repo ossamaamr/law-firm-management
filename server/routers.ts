@@ -14,9 +14,6 @@ import {
   getLawFirmById, getUsersByLawFirm, getUserById,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
-import { authRouter } from "./auth.routes";
-import { activityRouter } from "./activity.routes";
-import { COOKIE_NAME } from "@shared/const";
 
 // ============ PROCEDURES ============
 
@@ -36,11 +33,8 @@ const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 
 // ============ ROUTERS ============
 
-// Import COOKIE_NAME at the top
-
 export const appRouter = router({
   system: systemRouter,
-  activity: activityRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -49,13 +43,6 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
-    // Registration and authentication routes
-    signup: authRouter.signup,
-    login: authRouter.login,
-    verifyIdentifier: authRouter.verifyIdentifier,
-    getPendingRequests: authRouter.getPendingRequests,
-    approveRegistration: authRouter.approveRegistration,
-    rejectRegistration: authRouter.rejectRegistration,
   }),
 
   // ============ CASES ROUTER ============

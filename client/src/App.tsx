@@ -6,30 +6,18 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import Home from "./pages/Home";
-import CasEngineDashboard from "./components/CasEngineDashboard";
-import ClientsPage from "./pages/ClientsPage";
-import CasesPage from "./pages/CasesPage";
-import InvoicesPage from "./pages/InvoicesPage";
-import MattersPage from "./pages/MattersPage";
-import SignupPage from "./pages/SignupPage";
-import LoginPage from "./pages/LoginPage";
-import AdminApprovalPage from "./pages/AdminApprovalPage";
-import ActivityTimelinePage from "./pages/ActivityTimelinePage";
+import { CasEngineDashboard } from "./components/CasEngineDashboard";
+import Clients from "./pages/Clients";
+import Cases from "./pages/Cases";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={""} component={CasEngineDashboard} />
+      <Route path={"/ "} component={CasEngineDashboard} />
       <Route path={"/dashboard"} component={CasEngineDashboard} />
-      <Route path={"/login"} component={LoginPage} />
-      <Route path={"/signup"} component={SignupPage} />
-      <Route path={"/admin/approvals"} component={AdminApprovalPage} />
-      <Route path={"/activity"} component={ActivityTimelinePage} />
-      <Route path={"/clients"} component={ClientsPage} />
-      <Route path={"/cases"} component={CasesPage} />
-      <Route path={"/invoices"} component={InvoicesPage} />
-      <Route path={"/matters"} component={MattersPage} />
+      <Route path={"/clients"} component={Clients} />
+      <Route path={"/cases"} component={Cases} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -46,10 +34,10 @@ function App() {
   return (
     <ErrorBoundary>
       <LanguageProvider>
-      <ThemeProvider
-        defaultTheme="light"
-        switchable
-      >
+        <ThemeProvider
+          defaultTheme="light"
+          // switchable
+        >
           <TooltipProvider>
             <Toaster />
             <Router />
