@@ -1,1 +1,265 @@
-/**\n * Contact Routes\n * مسارات الاتصال\n */\n\nimport { Router, Request, Response } from \"express\";\nimport { emailService } from \"../external-apis.service\";\nimport { contactConfig } from \"../config/contact.config\";\nimport { logger } from \"../logger\";\n\nconst router = Router();\n\n/**\n * Send contact request\n * POST /api/contact/send\n * إرسال طلب اتصال\n */\nrouter.post(\"/send\", async (req: Request, res: Response) => {\n  try {\n    const { name, email, phone, message, type = \"support\" } = req.body;\n\n    // Validate input\n    if (!name || !email || !message) {\n      return res.status(400).json({\n        success: false,\n        error: \"Missing required fields\",\n      });\n    }\n\n    // Get contact email based on type\n    const contactEmail = contactConfig[type as keyof typeof contactConfig]?.email || contactConfig.primary.email;\n\n    // Send email to support team\n    const supportEmailSent = await emailService.sendEmail(\n      contactEmail,\n      `طلب اتصال جديد من ${name}`,\n      `\n        <div style=\"font-family: Arial, sans-serif; direction: rtl;\">\n          <h2>طلب اتصال جديد</h2>\n          <p><strong>الاسم:</strong> ${name}</p>\n          <p><strong>البريد الإلكتروني:</strong> ${email}</p>\n          <p><strong>الهاتف:</strong> ${phone || \"غير محدد\"}</p>\n          <p><strong>نوع الطلب:</strong> ${type}</p>\n          <p><strong>الرسالة:</strong></p>\n          <p>${message.replace(/\\n/g, \"<br>\")}</p>\n        </div>\n      `\n    );\n\n    // Send confirmation email to user\n    const userEmailSent = await emailService.sendEmail(\n      email,\n      \"شكراً على تواصلك معنا\",\n      `\n        <div style=\"font-family: Arial, sans-serif; direction: rtl;\">\n          <h2>شكراً على تواصلك معنا</h2>\n          <p>مرحباً ${name}!</p>\n          <p>تلقينا طلبك وسيتم الرد عليك في أقرب وقت ممكن.</p>\n          <p>بيانات طلبك:</p>\n          <ul>\n            <li><strong>البريد الإلكتروني:</strong> ${email}</li>\n            <li><strong>الهاتف:</strong> ${phone || \"غير محدد\"}</li>\n            <li><strong>نوع الطلب:</strong> ${type}</li>\n          </ul>\n          <p>مع أطيب التحيات،<br>فريق CasEngine</p>\n        </div>\n      `\n    );\n\n    logger.info(`Contact request received from ${email}`, {\n      name,\n      type,\n      supportEmailSent,\n      userEmailSent,\n    });\n\n    res.json({\n      success: true,\n      message: \"تم استقبال طلبك بنجاح. سيتم الرد عليك قريباً.\",\n      supportEmailSent,\n      userEmailSent,\n    });\n  } catch (error) {\n    logger.error(\"Error sending contact request:\", error);\n    res.status(500).json({\n      success: false,\n      error: \"Failed to send contact request\",\n    });\n  }\n});\n\n/**\n * Get contact information\n * GET /api/contact/info\n * الحصول على معلومات الاتصال\n */\nrouter.get(\"/info\", (req: Request, res: Response) => {\n  try {\n    res.json({\n      success: true,\n      data: {\n        primary: contactConfig.primary,\n        support: contactConfig.support,\n        social: contactConfig.social,\n        company: contactConfig.company,\n      },\n    });\n  } catch (error) {\n    logger.error(\"Error fetching contact information:\", error);\n    res.status(500).json({\n      success: false,\n      error: \"Failed to fetch contact information\",\n    });\n  }\n});\n\n/**\n * Get support contact\n * GET /api/contact/support\n * الحصول على معلومات الدعم الفني\n */\nrouter.get(\"/support\", (req: Request, res: Response) => {\n  try {\n    res.json({\n      success: true,\n      data: contactConfig.support,\n    });\n  } catch (error) {\n    logger.error(\"Error fetching support contact:\", error);\n    res.status(500).json({\n      success: false,\n      error: \"Failed to fetch support contact\",\n    });\n  }\n});\n\n/**\n * Get social media links\n * GET /api/contact/social\n * الحصول على روابط وسائل التواصل\n */\nrouter.get(\"/social\", (req: Request, res: Response) => {\n  try {\n    res.json({\n      success: true,\n      data: contactConfig.social,\n    });\n  } catch (error) {\n    logger.error(\"Error fetching social media links:\", error);\n    res.status(500).json({\n      success: false,\n      error: \"Failed to fetch social media links\",\n    });\n  }\n});\n\n/**\n * Subscribe to newsletter\n * POST /api/contact/newsletter\n * الاشتراك في النشرة البريدية\n */\nrouter.post(\"/newsletter\", async (req: Request, res: Response) => {\n  try {\n    const { email, name } = req.body;\n\n    // Validate email\n    if (!email || !email.includes(\"@\")) {\n      return res.status(400).json({\n        success: false,\n        error: \"Invalid email address\",\n      });\n    }\n\n    // Send confirmation email\n    const sent = await emailService.sendEmail(\n      email,\n      \"شكراً على اشتراكك في النشرة البريدية\",\n      `\n        <div style=\"font-family: Arial, sans-serif; direction: rtl;\">\n          <h2>شكراً على اشتراكك</h2>\n          <p>مرحباً ${name || \"الصديق\"}!</p>\n          <p>تم اشتراكك بنجاح في النشرة البريدية الخاصة بنا.</p>\n          <p>ستتلقى آخر الأخبار والتحديثات والنصائح المفيدة مباشرة في بريدك الإلكتروني.</p>\n          <p>مع أطيب التحيات،<br>فريق CasEngine</p>\n        </div>\n      `\n    );\n\n    logger.info(`Newsletter subscription from ${email}`);\n\n    res.json({\n      success: true,\n      message: \"تم اشتراكك بنجاح في النشرة البريدية\",\n    });\n  } catch (error) {\n    logger.error(\"Error subscribing to newsletter:\", error);\n    res.status(500).json({\n      success: false,\n      error: \"Failed to subscribe to newsletter\",\n    });\n  }\n});\n\n/**\n * Report a bug\n * POST /api/contact/bug-report\n * الإبلاغ عن خطأ\n */\nrouter.post(\"/bug-report\", async (req: Request, res: Response) => {\n  try {\n    const { title, description, severity, email, userAgent } = req.body;\n\n    // Validate input\n    if (!title || !description) {\n      return res.status(400).json({\n        success: false,\n        error: \"Missing required fields\",\n      });\n    }\n\n    // Send bug report email\n    const sent = await emailService.sendEmail(\n      contactConfig.bugReport.email,\n      `تقرير خطأ جديد: ${title}`,\n      `\n        <div style=\"font-family: Arial, sans-serif; direction: rtl;\">\n          <h2>تقرير خطأ جديد</h2>\n          <p><strong>العنوان:</strong> ${title}</p>\n          <p><strong>الخطورة:</strong> ${severity || \"عادية\"}</p>\n          <p><strong>البريد الإلكتروني:</strong> ${email || \"غير محدد\"}</p>\n          <p><strong>الوصف:</strong></p>\n          <p>${description.replace(/\\n/g, \"<br>\")}</p>\n          <p><strong>معلومات المتصفح:</strong></p>\n          <p>${userAgent || \"غير محدد\"}</p>\n        </div>\n      `\n    );\n\n    logger.info(`Bug report received: ${title}`, {\n      severity,\n      email,\n    });\n\n    res.json({\n      success: true,\n      message: \"شكراً على الإبلاغ عن الخطأ. سيتم التحقيق فيه قريباً.\",\n    });\n  } catch (error) {\n    logger.error(\"Error reporting bug:\", error);\n    res.status(500).json({\n      success: false,\n      error: \"Failed to report bug\",\n    });\n  }\n});\n\nexport default router;\n"
+/**
+ * Contact Routes
+ * مسارات الاتصال
+ */
+
+import { Router, Request, Response } from "express";
+import { emailService } from "../external-apis.service";
+import { contactConfig } from "../config/contact.config";
+import { logger } from "../logger";
+
+const router = Router();
+
+/**
+ * Send contact request
+ * POST /api/contact/send
+ * إرسال طلب اتصال
+ */
+router.post("/send", async (req: Request, res: Response) => {
+  try {
+    const { name, email, phone, message, type = "support" } = req.body;
+
+    // Validate input
+    if (!name || !email || !message) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+      });
+    }
+
+    // Get contact email based on type
+    const contactEmail = type === "sales"
+      ? contactConfig.sales.email
+      : type === "billing"
+        ? contactConfig.billing.email
+        : type === "technical"
+          ? contactConfig.technical.email
+          : type === "feedback"
+            ? contactConfig.feedback.email
+            : contactConfig.support.email;
+
+    // Send email to support team
+    const supportEmailSent = await emailService.sendEmail(
+      contactEmail,
+      `طلب اتصال جديد من ${name}`,
+      `
+        <div style="font-family: Arial, sans-serif; direction: rtl;">
+          <h2>طلب اتصال جديد</h2>
+          <p><strong>الاسم:</strong> ${name}</p>
+          <p><strong>البريد الإلكتروني:</strong> ${email}</p>
+          <p><strong>الهاتف:</strong> ${phone || "غير محدد"}</p>
+          <p><strong>نوع الطلب:</strong> ${type}</p>
+          <p><strong>الرسالة:</strong></p>
+          <p>${message.replace(/\n/g, "<br>")}</p>
+        </div>
+      `
+    );
+
+    // Send confirmation email to user
+    const userEmailSent = await emailService.sendEmail(
+      email,
+      "شكراً على تواصلك معنا",
+      `
+        <div style="font-family: Arial, sans-serif; direction: rtl;">
+          <h2>شكراً على تواصلك معنا</h2>
+          <p>مرحباً ${name}!</p>
+          <p>تلقينا طلبك وسيتم الرد عليك في أقرب وقت ممكن.</p>
+          <p>بيانات طلبك:</p>
+          <ul>
+            <li><strong>البريد الإلكتروني:</strong> ${email}</li>
+            <li><strong>الهاتف:</strong> ${phone || "غير محدد"}</li>
+            <li><strong>نوع الطلب:</strong> ${type}</li>
+          </ul>
+          <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+        </div>
+      `
+    );
+
+    logger.info(`Contact request received from ${email}`, {
+      name,
+      type,
+      supportEmailSent,
+      userEmailSent,
+    });
+
+    res.json({
+      success: true,
+      message: "تم استقبال طلبك بنجاح. سيتم الرد عليك قريباً.",
+      supportEmailSent,
+      userEmailSent,
+    });
+  } catch (error) {
+    logger.error("Error sending contact request:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to send contact request",
+    });
+  }
+});
+
+/**
+ * Get contact information
+ * GET /api/contact/info
+ * الحصول على معلومات الاتصال
+ */
+router.get("/info", (req: Request, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        primary: contactConfig.primary,
+        support: contactConfig.support,
+        social: contactConfig.social,
+        company: contactConfig.company,
+      },
+    });
+  } catch (error) {
+    logger.error("Error fetching contact information:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch contact information",
+    });
+  }
+});
+
+/**
+ * Get support contact
+ * GET /api/contact/support
+ * الحصول على معلومات الدعم الفني
+ */
+router.get("/support", (req: Request, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      data: contactConfig.support,
+    });
+  } catch (error) {
+    logger.error("Error fetching support contact:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch support contact",
+    });
+  }
+});
+
+/**
+ * Get social media links
+ * GET /api/contact/social
+ * الحصول على روابط وسائل التواصل
+ */
+router.get("/social", (req: Request, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      data: contactConfig.social,
+    });
+  } catch (error) {
+    logger.error("Error fetching social media links:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch social media links",
+    });
+  }
+});
+
+/**
+ * Subscribe to newsletter
+ * POST /api/contact/newsletter
+ * الاشتراك في النشرة البريدية
+ */
+router.post("/newsletter", async (req: Request, res: Response) => {
+  try {
+    const { email, name } = req.body;
+
+    // Validate email
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid email address",
+      });
+    }
+
+    // Send confirmation email
+    const sent = await emailService.sendEmail(
+      email,
+      "شكراً على اشتراكك في النشرة البريدية",
+      `
+        <div style="font-family: Arial, sans-serif; direction: rtl;">
+          <h2>شكراً على اشتراكك</h2>
+          <p>مرحباً ${name || "الصديق"}!</p>
+          <p>تم اشتراكك بنجاح في النشرة البريدية الخاصة بنا.</p>
+          <p>ستتلقى آخر الأخبار والتحديثات والنصائح المفيدة مباشرة في بريدك الإلكتروني.</p>
+          <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+        </div>
+      `
+    );
+
+    logger.info(`Newsletter subscription from ${email}`);
+
+    res.json({
+      success: true,
+      message: "تم اشتراكك بنجاح في النشرة البريدية",
+    });
+  } catch (error) {
+    logger.error("Error subscribing to newsletter:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to subscribe to newsletter",
+    });
+  }
+});
+
+/**
+ * Report a bug
+ * POST /api/contact/bug-report
+ * الإبلاغ عن خطأ
+ */
+router.post("/bug-report", async (req: Request, res: Response) => {
+  try {
+    const { title, description, severity, email, userAgent } = req.body;
+
+    // Validate input
+    if (!title || !description) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+      });
+    }
+
+    // Send bug report email
+    const sent = await emailService.sendEmail(
+      contactConfig.bugReport.email,
+      `تقرير خطأ جديد: ${title}`,
+      `
+        <div style="font-family: Arial, sans-serif; direction: rtl;">
+          <h2>تقرير خطأ جديد</h2>
+          <p><strong>العنوان:</strong> ${title}</p>
+          <p><strong>الخطورة:</strong> ${severity || "عادية"}</p>
+          <p><strong>البريد الإلكتروني:</strong> ${email || "غير محدد"}</p>
+          <p><strong>الوصف:</strong></p>
+          <p>${description.replace(/\n/g, "<br>")}</p>
+          <p><strong>معلومات المتصفح:</strong></p>
+          <p>${userAgent || "غير محدد"}</p>
+        </div>
+      `
+    );
+
+    logger.info(`Bug report received: ${title}`, {
+      severity,
+      email,
+    });
+
+    res.json({
+      success: true,
+      message: "شكراً على الإبلاغ عن الخطأ. سيتم التحقيق فيه قريباً.",
+    });
+  } catch (error) {
+    logger.error("Error reporting bug:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to report bug",
+    });
+  }
+});
+
+export default router;

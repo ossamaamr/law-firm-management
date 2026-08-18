@@ -25,8 +25,9 @@ import {
  */
 
 export interface SearchFilter {
-  id: string;\n  label: string;
-  type: \"text\" | \"select\" | \"date\" | \"multiselect\" | \"range\";
+  id: string;
+  label: string;
+  type: "text" | "select" | "date" | "multiselect" | "range";
   placeholder?: string;
   options?: Array<{ value: string; label: string }>;
   value?: any;

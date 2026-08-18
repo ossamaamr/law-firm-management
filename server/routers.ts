@@ -11,9 +11,10 @@ import {
   getDocumentsByCaseId, createDocument, deleteDocument,
   getUserNotifications, createNotification, markNotificationAsRead,
   getAuditLogsByCaseId, createAuditLog,
-  getLawFirmById, getUsersByLawFirm, getUserById,
+  getLawFirmById, getUsersByLawFirm, getUserById, getMatterById,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
+import { authRouter } from "./auth.routes";
 
 // ============ PROCEDURES ============
 
@@ -36,14 +37,7 @@ const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 export const appRouter = router({
   system: systemRouter,
   
-  auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return { success: true } as const;
-    }),
-  }),
+  auth: authRouter,
 
   // ============ CASES ROUTER ============
   cases: router({
@@ -81,6 +75,23 @@ export const appRouter = router({
       budget: z.string().optional(),
       matterId: z.number(),
     })).mutation(async ({ input, ctx }) => {
+      const [client, matter, lawyer] = await Promise.all([
+        getClientById(input.clientId),
+        getMatterById(input.matterId),
+        getUserById(input.lawyerId),
+      ]);
+
+      if (
+        !client ||
+        client.lawFirmId !== ctx.lawFirmId ||
+        !matter ||
+        matter.lawFirmId !== ctx.lawFirmId ||
+        !lawyer ||
+        lawyer.lawFirmId !== ctx.lawFirmId
+      ) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Related resource not found" });
+      }
+
       const newCase = await createCase({
         matterId: input.matterId,
         lawFirmId: ctx.lawFirmId,
@@ -238,8 +249,8 @@ export const appRouter = router({
       return getUserNotifications(ctx.user.id);
     }),
 
-    markAsRead: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
-      await markNotificationAsRead(input);
+    markAsRead: protectedProcedure.input(z.number()).mutation(async ({ input, ctx }) => {
+      await markNotificationAsRead(input, ctx.user.id);
       return { success: true };
     }),
   }),

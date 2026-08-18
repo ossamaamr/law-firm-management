@@ -1,1 +1,355 @@
-/**\n * External APIs Integration Service\n * خدمة تكامل الأكواد الخارجية\n */\n\nimport nodemailer from \"nodemailer\";\nimport { logger } from \"./logger\";\n\n/**\n * Email Service\n * خدمة البريد الإلكتروني\n */\nexport class EmailService {\n  private transporter: nodemailer.Transporter;\n\n  constructor() {\n    this.transporter = nodemailer.createTransport({\n      host: process.env.SMTP_HOST || \"smtp.gmail.com\",\n      port: parseInt(process.env.SMTP_PORT || \"587\"),\n      secure: process.env.SMTP_SECURE === \"true\",\n      auth: {\n        user: process.env.SMTP_USER || \"boss1291boss@gmail.com\",\n        pass: process.env.SMTP_PASSWORD || \"\",\n      },\n    });\n  }\n\n  /**\n   * Send email\n   * إرسال بريد إلكتروني\n   */\n  async sendEmail(\n    to: string,\n    subject: string,\n    html: string,\n    text?: string\n  ): Promise<boolean> {\n    try {\n      const info = await this.transporter.sendMail({\n        from: process.env.SMTP_FROM || \"boss1291boss@gmail.com\",\n        to,\n        subject,\n        text: text || subject,\n        html,\n      });\n\n      logger.info(`Email sent: ${info.messageId}`);\n      return true;\n    } catch (error) {\n      logger.error(\"Error sending email:\", error);\n      return false;\n    }\n  }\n\n  /**\n   * Send registration confirmation email\n   * إرسال بريد تأكيد التسجيل\n   */\n  async sendRegistrationConfirmation(\n    email: string,\n    name: string,\n    confirmationUrl: string\n  ): Promise<boolean> {\n    const html = `\n      <div style=\"font-family: Arial, sans-serif; direction: rtl;\">\n        <h2>مرحباً ${name}!</h2>\n        <p>شكراً لتسجيلك في CasEngine</p>\n        <p>يرجى تأكيد بريدك الإلكتروني بالنقر على الرابط أدناه:</p>\n        <a href=\"${confirmationUrl}\" style=\"background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">\n          تأكيد البريد الإلكتروني\n        </a>\n        <p>أو انسخ الرابط التالي:</p>\n        <p>${confirmationUrl}</p>\n        <p>مع أطيب التحيات،<br>فريق CasEngine</p>\n      </div>\n    `;\n\n    return this.sendEmail(email, \"تأكيد بريدك الإلكتروني\", html);\n  }\n\n  /**\n   * Send password reset email\n   * إرسال بريد إعادة تعيين كلمة المرور\n   */\n  async sendPasswordReset(\n    email: string,\n    name: string,\n    resetUrl: string\n  ): Promise<boolean> {\n    const html = `\n      <div style=\"font-family: Arial, sans-serif; direction: rtl;\">\n        <h2>إعادة تعيين كلمة المرور</h2>\n        <p>مرحباً ${name}!</p>\n        <p>تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بك.</p>\n        <p>انقر على الرابط أدناه لإعادة تعيين كلمة المرور:</p>\n        <a href=\"${resetUrl}\" style=\"background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;\">\n          إعادة تعيين كلمة المرور\n        </a>\n        <p>إذا لم تطلب هذا، يرجى تجاهل هذا البريد.</p>\n        <p>مع أطيب التحيات،<br>فريق CasEngine</p>\n      </div>\n    `;\n\n    return this.sendEmail(email, \"إعادة تعيين كلمة المرور\", html);\n  }\n\n  /**\n   * Send court session reminder\n   * إرسال تذكير الجلسة القضائية\n   */\n  async sendCourtSessionReminder(\n    email: string,\n    lawyerName: string,\n    caseNumber: string,\n    sessionDate: string,\n    courtName: string\n  ): Promise<boolean> {\n    const html = `\n      <div style=\"font-family: Arial, sans-serif; direction: rtl;\">\n        <h2>تذكير: جلسة قضائية قادمة</h2>\n        <p>مرحباً ${lawyerName}!</p>\n        <p>هذا تذكير بالجلسة القضائية القادمة:</p>\n        <ul>\n          <li><strong>رقم القضية:</strong> ${caseNumber}</li>\n          <li><strong>تاريخ الجلسة:</strong> ${sessionDate}</li>\n          <li><strong>المحكمة:</strong> ${courtName}</li>\n        </ul>\n        <p>يرجى التأكد من حضورك في الموعد المحدد.</p>\n        <p>مع أطيب التحيات،<br>فريق CasEngine</p>\n      </div>\n    `;\n\n    return this.sendEmail(\n      email,\n      `تذكير: جلسة قضائية في ${sessionDate}`,\n      html\n    );\n  }\n\n  /**\n   * Send invoice email\n   * إرسال بريد الفاتورة\n   */\n  async sendInvoice(\n    email: string,\n    clientName: string,\n    invoiceNumber: string,\n    amount: number,\n    dueDate: string\n  ): Promise<boolean> {\n    const html = `\n      <div style=\"font-family: Arial, sans-serif; direction: rtl;\">\n        <h2>فاتورة جديدة</h2>\n        <p>مرحباً ${clientName}!</p>\n        <p>تم إنشاء فاتورة جديدة لك:</p>\n        <ul>\n          <li><strong>رقم الفاتورة:</strong> ${invoiceNumber}</li>\n          <li><strong>المبلغ:</strong> ${amount} ريال</li>\n          <li><strong>تاريخ الاستحقاق:</strong> ${dueDate}</li>\n        </ul>\n        <p>يرجى تسديد الفاتورة في الموعد المحدد.</p>\n        <p>مع أطيب التحيات،<br>فريق CasEngine</p>\n      </div>\n    `;\n\n    return this.sendEmail(email, `فاتورة جديدة: ${invoiceNumber}`, html);\n  }\n}\n\n/**\n * SMS Service\n * خدمة الرسائل النصية\n */\nexport class SMSService {\n  /**\n   * Send SMS notification\n   * إرسال رسالة نصية\n   */\n  async sendSMS(phoneNumber: string, message: string): Promise<boolean> {\n    try {\n      // Using Twilio or similar service\n      // This is a placeholder implementation\n      logger.info(`SMS sent to ${phoneNumber}: ${message}`);\n      return true;\n    } catch (error) {\n      logger.error(\"Error sending SMS:\", error);\n      return false;\n    }\n  }\n\n  /**\n   * Send court session reminder SMS\n   * إرسال تذكير الجلسة القضائية عبر SMS\n   */\n  async sendCourtSessionReminderSMS(\n    phoneNumber: string,\n    caseNumber: string,\n    sessionDate: string\n  ): Promise<boolean> {\n    const message = `تذكير: لديك جلسة قضائية في ${sessionDate} للقضية ${caseNumber}. يرجى التأكد من الحضور.`;\n    return this.sendSMS(phoneNumber, message);\n  }\n}\n\n/**\n * Analytics Service\n * خدمة التحليلات\n */\nexport class AnalyticsService {\n  /**\n   * Track event\n   * تتبع حدث\n   */\n  trackEvent(\n    eventName: string,\n    userId: string,\n    eventData?: Record<string, any>\n  ): void {\n    try {\n      logger.info(`Analytics event: ${eventName}`, {\n        userId,\n        data: eventData,\n      });\n      // Send to analytics service (Google Analytics, Mixpanel, etc.)\n    } catch (error) {\n      logger.error(\"Error tracking analytics event:\", error);\n    }\n  }\n\n  /**\n   * Track user action\n   * تتبع إجراء المستخدم\n   */\n  trackUserAction(\n    userId: string,\n    action: string,\n    details?: Record<string, any>\n  ): void {\n    this.trackEvent(`user_${action}`, userId, details);\n  }\n}\n\n/**\n * Payment Service\n * خدمة الدفع\n */\nexport class PaymentService {\n  /**\n   * Process payment\n   * معالجة الدفع\n   */\n  async processPayment(\n    amount: number,\n    currency: string,\n    paymentMethod: string,\n    metadata?: Record<string, any>\n  ): Promise<{ success: boolean; transactionId?: string; error?: string }> {\n    try {\n      // Integration with payment gateway (Stripe, PayPal, etc.)\n      logger.info(`Processing payment: ${amount} ${currency}`);\n      return {\n        success: true,\n        transactionId: `TXN_${Date.now()}`,\n      };\n    } catch (error) {\n      logger.error(\"Error processing payment:\", error);\n      return {\n        success: false,\n        error: \"Payment processing failed\",\n      };\n    }\n  }\n}\n\n/**\n * Document Service\n * خدمة المستندات\n */\nexport class DocumentService {\n  /**\n   * Convert document to PDF\n   * تحويل المستند إلى PDF\n   */\n  async convertToPDF(filePath: string): Promise<Buffer | null> {\n    try {\n      // Using LibreOffice or similar service\n      logger.info(`Converting document to PDF: ${filePath}`);\n      // Return PDF buffer\n      return null;\n    } catch (error) {\n      logger.error(\"Error converting document to PDF:\", error);\n      return null;\n    }\n  }\n\n  /**\n   * Extract text from document using OCR\n   * استخراج النص من المستند باستخدام OCR\n   */\n  async extractTextFromDocument(filePath: string): Promise<string | null> {\n    try {\n      // Using Tesseract or Google Vision API\n      logger.info(`Extracting text from document: ${filePath}`);\n      return null;\n    } catch (error) {\n      logger.error(\"Error extracting text from document:\", error);\n      return null;\n    }\n  }\n}\n\n/**\n * Storage Service\n * خدمة التخزين\n */\nexport class StorageService {\n  /**\n   * Upload file to cloud storage\n   * تحميل ملف إلى التخزين السحابي\n   */\n  async uploadFile(\n    filePath: string,\n    destination: string\n  ): Promise<{ success: boolean; url?: string; error?: string }> {\n    try {\n      // Using AWS S3, Google Cloud Storage, or Azure Blob Storage\n      logger.info(`Uploading file to cloud storage: ${destination}`);\n      return {\n        success: true,\n        url: `https://storage.example.com/${destination}`,\n      };\n    } catch (error) {\n      logger.error(\"Error uploading file to cloud storage:\", error);\n      return {\n        success: false,\n        error: \"File upload failed\",\n      };\n    }\n  }\n\n  /**\n   * Download file from cloud storage\n   * تحميل ملف من التخزين السحابي\n   */\n  async downloadFile(fileUrl: string): Promise<Buffer | null> {\n    try {\n      logger.info(`Downloading file from cloud storage: ${fileUrl}`);\n      return null;\n    } catch (error) {\n      logger.error(\"Error downloading file from cloud storage:\", error);\n      return null;\n    }\n  }\n}\n\n/**\n * Initialize all external services\n * تهيئة جميع الخدمات الخارجية\n */\nexport function initializeExternalServices() {\n  return {\n    email: new EmailService(),\n    sms: new SMSService(),\n    analytics: new AnalyticsService(),\n    payment: new PaymentService(),\n    document: new DocumentService(),\n    storage: new StorageService(),\n  };\n}\n\n// Export singleton instances\nexport const emailService = new EmailService();\nexport const smsService = new SMSService();\nexport const analyticsService = new AnalyticsService();\nexport const paymentService = new PaymentService();\nexport const documentService = new DocumentService();\nexport const storageService = new StorageService();\n"
+/**
+ * External APIs Integration Service
+ * خدمة تكامل الأكواد الخارجية
+ */
+
+import { logger } from "./logger";
+
+/**
+ * Email Service
+ * خدمة البريد الإلكتروني
+ */
+export class EmailService {
+
+  /**
+   * Send email
+   * إرسال بريد إلكتروني
+   */
+  async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+    text?: string
+  ): Promise<boolean> {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
+      logger.error("Email delivery is unavailable because SMTP is not configured", { to, subject });
+      return false;
+    }
+
+    logger.error("Email delivery provider is not implemented", { to, subject, hasHtml: Boolean(html), hasText: Boolean(text) });
+    return false;
+  }
+
+  /**
+   * Send registration confirmation email
+   * إرسال بريد تأكيد التسجيل
+   */
+  async sendRegistrationConfirmation(
+    email: string,
+    name: string,
+    confirmationUrl: string
+  ): Promise<boolean> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; direction: rtl;">
+        <h2>مرحباً ${name}!</h2>
+        <p>شكراً لتسجيلك في CasEngine</p>
+        <p>يرجى تأكيد بريدك الإلكتروني بالنقر على الرابط أدناه:</p>
+        <a href="${confirmationUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+          تأكيد البريد الإلكتروني
+        </a>
+        <p>أو انسخ الرابط التالي:</p>
+        <p>${confirmationUrl}</p>
+        <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+      </div>
+    `;
+
+    return this.sendEmail(email, "تأكيد بريدك الإلكتروني", html);
+  }
+
+  /**
+   * Send password reset email
+   * إرسال بريد إعادة تعيين كلمة المرور
+   */
+  async sendPasswordReset(
+    email: string,
+    name: string,
+    resetUrl: string
+  ): Promise<boolean> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; direction: rtl;">
+        <h2>إعادة تعيين كلمة المرور</h2>
+        <p>مرحباً ${name}!</p>
+        <p>تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بك.</p>
+        <p>انقر على الرابط أدناه لإعادة تعيين كلمة المرور:</p>
+        <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+          إعادة تعيين كلمة المرور
+        </a>
+        <p>إذا لم تطلب هذا، يرجى تجاهل هذا البريد.</p>
+        <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+      </div>
+    `;
+
+    return this.sendEmail(email, "إعادة تعيين كلمة المرور", html);
+  }
+
+  /**
+   * Send court session reminder
+   * إرسال تذكير الجلسة القضائية
+   */
+  async sendCourtSessionReminder(
+    email: string,
+    lawyerName: string,
+    caseNumber: string,
+    sessionDate: string,
+    courtName: string
+  ): Promise<boolean> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; direction: rtl;">
+        <h2>تذكير: جلسة قضائية قادمة</h2>
+        <p>مرحباً ${lawyerName}!</p>
+        <p>هذا تذكير بالجلسة القضائية القادمة:</p>
+        <ul>
+          <li><strong>رقم القضية:</strong> ${caseNumber}</li>
+          <li><strong>تاريخ الجلسة:</strong> ${sessionDate}</li>
+          <li><strong>المحكمة:</strong> ${courtName}</li>
+        </ul>
+        <p>يرجى التأكد من حضورك في الموعد المحدد.</p>
+        <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+      </div>
+    `;
+
+    return this.sendEmail(
+      email,
+      `تذكير: جلسة قضائية في ${sessionDate}`,
+      html
+    );
+  }
+
+  /**
+   * Send invoice email
+   * إرسال بريد الفاتورة
+   */
+  async sendInvoice(
+    email: string,
+    clientName: string,
+    invoiceNumber: string,
+    amount: number,
+    dueDate: string
+  ): Promise<boolean> {
+    const html = `
+      <div style="font-family: Arial, sans-serif; direction: rtl;">
+        <h2>فاتورة جديدة</h2>
+        <p>مرحباً ${clientName}!</p>
+        <p>تم إنشاء فاتورة جديدة لك:</p>
+        <ul>
+          <li><strong>رقم الفاتورة:</strong> ${invoiceNumber}</li>
+          <li><strong>المبلغ:</strong> ${amount} ريال</li>
+          <li><strong>تاريخ الاستحقاق:</strong> ${dueDate}</li>
+        </ul>
+        <p>يرجى تسديد الفاتورة في الموعد المحدد.</p>
+        <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+      </div>
+    `;
+
+    return this.sendEmail(email, `فاتورة جديدة: ${invoiceNumber}`, html);
+  }
+}
+
+/**
+ * SMS Service
+ * خدمة الرسائل النصية
+ */
+export class SMSService {
+  /**
+   * Send SMS notification
+   * إرسال رسالة نصية
+   */
+  async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
+    try {
+      // Using Twilio or similar service
+      // This is a placeholder implementation
+      logger.info(`SMS sent to ${phoneNumber}: ${message}`);
+      return true;
+    } catch (error) {
+      logger.error("Error sending SMS:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Send court session reminder SMS
+   * إرسال تذكير الجلسة القضائية عبر SMS
+   */
+  async sendCourtSessionReminderSMS(
+    phoneNumber: string,
+    caseNumber: string,
+    sessionDate: string
+  ): Promise<boolean> {
+    const message = `تذكير: لديك جلسة قضائية في ${sessionDate} للقضية ${caseNumber}. يرجى التأكد من الحضور.`;
+    return this.sendSMS(phoneNumber, message);
+  }
+}
+
+/**
+ * Analytics Service
+ * خدمة التحليلات
+ */
+export class AnalyticsService {
+  /**
+   * Track event
+   * تتبع حدث
+   */
+  trackEvent(
+    eventName: string,
+    userId: string,
+    eventData?: Record<string, any>
+  ): void {
+    try {
+      logger.info(`Analytics event: ${eventName}`, {
+        userId,
+        data: eventData,
+      });
+      // Send to analytics service (Google Analytics, Mixpanel, etc.)
+    } catch (error) {
+      logger.error("Error tracking analytics event:", error);
+    }
+  }
+
+  /**
+   * Track user action
+   * تتبع إجراء المستخدم
+   */
+  trackUserAction(
+    userId: string,
+    action: string,
+    details?: Record<string, any>
+  ): void {
+    this.trackEvent(`user_${action}`, userId, details);
+  }
+}
+
+/**
+ * Payment Service
+ * خدمة الدفع
+ */
+export class PaymentService {
+  /**
+   * Process payment
+   * معالجة الدفع
+   */
+  async processPayment(
+    amount: number,
+    currency: string,
+    paymentMethod: string,
+    metadata?: Record<string, any>
+  ): Promise<{ success: boolean; transactionId?: string; error?: string }> {
+    try {
+      // Integration with payment gateway (Stripe, PayPal, etc.)
+      logger.info(`Processing payment: ${amount} ${currency}`);
+      return {
+        success: true,
+        transactionId: `TXN_${Date.now()}`,
+      };
+    } catch (error) {
+      logger.error("Error processing payment:", error);
+      return {
+        success: false,
+        error: "Payment processing failed",
+      };
+    }
+  }
+}
+
+/**
+ * Document Service
+ * خدمة المستندات
+ */
+export class DocumentService {
+  /**
+   * Convert document to PDF
+   * تحويل المستند إلى PDF
+   */
+  async convertToPDF(filePath: string): Promise<Buffer | null> {
+    try {
+      // Using LibreOffice or similar service
+      logger.info(`Converting document to PDF: ${filePath}`);
+      // Return PDF buffer
+      return null;
+    } catch (error) {
+      logger.error("Error converting document to PDF:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Extract text from document using OCR
+   * استخراج النص من المستند باستخدام OCR
+   */
+  async extractTextFromDocument(filePath: string): Promise<string | null> {
+    try {
+      // Using Tesseract or Google Vision API
+      logger.info(`Extracting text from document: ${filePath}`);
+      return null;
+    } catch (error) {
+      logger.error("Error extracting text from document:", error);
+      return null;
+    }
+  }
+}
+
+/**
+ * Storage Service
+ * خدمة التخزين
+ */
+export class StorageService {
+  /**
+   * Upload file to cloud storage
+   * تحميل ملف إلى التخزين السحابي
+   */
+  async uploadFile(
+    filePath: string,
+    destination: string
+  ): Promise<{ success: boolean; url?: string; error?: string }> {
+    try {
+      // Using AWS S3, Google Cloud Storage, or Azure Blob Storage
+      logger.info(`Uploading file to cloud storage: ${destination}`);
+      return {
+        success: true,
+        url: `https://storage.example.com/${destination}`,
+      };
+    } catch (error) {
+      logger.error("Error uploading file to cloud storage:", error);
+      return {
+        success: false,
+        error: "File upload failed",
+      };
+    }
+  }
+
+  /**
+   * Download file from cloud storage
+   * تحميل ملف من التخزين السحابي
+   */
+  async downloadFile(fileUrl: string): Promise<Buffer | null> {
+    try {
+      logger.info(`Downloading file from cloud storage: ${fileUrl}`);
+      return null;
+    } catch (error) {
+      logger.error("Error downloading file from cloud storage:", error);
+      return null;
+    }
+  }
+}
+
+/**
+ * Initialize all external services
+ * تهيئة جميع الخدمات الخارجية
+ */
+export function initializeExternalServices() {
+  return {
+    email: new EmailService(),
+    sms: new SMSService(),
+    analytics: new AnalyticsService(),
+    payment: new PaymentService(),
+    document: new DocumentService(),
+    storage: new StorageService(),
+  };
+}
+
+// Export singleton instances
+export const emailService = new EmailService();
+export const smsService = new SMSService();
+export const analyticsService = new AnalyticsService();
+export const paymentService = new PaymentService();
+export const documentService = new DocumentService();
+export const storageService = new StorageService();

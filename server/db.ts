@@ -365,11 +365,14 @@ export async function createNotification(data: Omit<Notification, 'id' | 'create
   return notif[0];
 }
 
-export async function markNotificationAsRead(id: number): Promise<void> {
+export async function markNotificationAsRead(id: number, userId: number): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(notifications).set({ isRead: true, readAt: new Date() }).where(eq(notifications.id, id));
+  await db
+    .update(notifications)
+    .set({ isRead: true, readAt: new Date() })
+    .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
 }
 
 // ============ AUDIT LOG QUERIES ============

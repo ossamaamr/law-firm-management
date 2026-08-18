@@ -1,1 +1,215 @@
-/**\n * Contact Configuration\n * إعدادات معلومات الاتصال\n */\n\nexport const contactConfig = {\n  // Primary contact information\n  // معلومات الاتصال الأساسية\n  primary: {\n    email: \"boss1291boss@gmail.com\",\n    phone: \"+966\",\n    address: \"المملكة العربية السعودية\",\n    country: \"SA\",\n    timezone: \"Asia/Riyadh\",\n  },\n\n  // Support contact information\n  // معلومات الدعم الفني\n  support: {\n    email: \"boss1291boss@gmail.com\",\n    phone: \"+966\",\n    website: \"https://casengine.com/support\",\n    hours: \"24/7\",\n    languages: [\"ar\", \"en\"],\n  },\n\n  // Sales contact information\n  // معلومات المبيعات\n  sales: {\n    email: \"boss1291boss@gmail.com\",\n    phone: \"+966\",\n    website: \"https://casengine.com/sales\",\n  },\n\n  // Billing contact information\n  // معلومات الفواتير\n  billing: {\n    email: \"boss1291boss@gmail.com\",\n    phone: \"+966\",\n  },\n\n  // Technical contact information\n  // معلومات الدعم الفني\n  technical: {\n    email: \"boss1291boss@gmail.com\",\n    phone: \"+966\",\n    slack: \"#support\",\n  },\n\n  // Social media links\n  // روابط وسائل التواصل الاجتماعي\n  social: {\n    github: \"https://github.com/ossamaamr/law-firm-management\",\n    linkedin: \"https://linkedin.com/company/casengine\",\n    twitter: \"https://twitter.com/casengine\",\n    facebook: \"https://facebook.com/casengine\",\n    instagram: \"https://instagram.com/casengine\",\n    youtube: \"https://youtube.com/@casengine\",\n  },\n\n  // Office locations\n  // مواقع المكاتب\n  offices: [\n    {\n      name: \"المقر الرئيسي\",\n      country: \"السعودية\",\n      city: \"الرياض\",\n      address: \"المملكة العربية السعودية\",\n      phone: \"+966\",\n      email: \"boss1291boss@gmail.com\",\n      timezone: \"Asia/Riyadh\",\n    },\n  ],\n\n  // Company information\n  // معلومات الشركة\n  company: {\n    name: \"CasEngine\",\n    legalName: \"نظام إدارة مكتب المحاماة\",\n    description: \"نظام إدارة متكامل وشامل لمكاتب المحاماة\",\n    founded: 2026,\n    website: \"https://casengine.com\",\n    logo: \"/logo.png\",\n  },\n\n  // Emergency contact\n  // جهات الاتصال الطارئة\n  emergency: {\n    email: \"boss1291boss@gmail.com\",\n    phone: \"+966\",\n    whatsapp: \"+966\",\n  },\n\n  // Newsletter subscription\n  // الاشتراك في النشرة البريدية\n  newsletter: {\n    email: \"boss1291boss@gmail.com\",\n    frequency: \"weekly\",\n    topics: [\"updates\", \"tips\", \"news\"],\n  },\n\n  // Feedback and suggestions\n  // الملاحظات والاقتراحات\n  feedback: {\n    email: \"boss1291boss@gmail.com\",\n    form: \"https://casengine.com/feedback\",\n  },\n\n  // Bug reporting\n  // الإبلاغ عن الأخطاء\n  bugReport: {\n    email: \"boss1291boss@gmail.com\",\n    github: \"https://github.com/ossamaamr/law-firm-management/issues\",\n  },\n\n  // Security contact\n  // جهات الاتصال الأمنية\n  security: {\n    email: \"boss1291boss@gmail.com\",\n    pgpKey: \"https://casengine.com/security/pgp-key\",\n  },\n};\n\n/**\n * Get contact information by type\n * الحصول على معلومات الاتصال حسب النوع\n */\nexport function getContactByType(\n  type: \"support\" | \"sales\" | \"billing\" | \"technical\" | \"emergency\"\n) {\n  return contactConfig[type];\n}\n\n/**\n * Get primary contact email\n * الحصول على البريد الإلكتروني الأساسي\n */\nexport function getPrimaryEmail(): string {\n  return contactConfig.primary.email;\n}\n\n/**\n * Get primary phone number\n * الحصول على رقم الهاتف الأساسي\n */\nexport function getPrimaryPhone(): string {\n  return contactConfig.primary.phone;\n}\n\n/**\n * Get support email\n * الحصول على بريد الدعم الفني\n */\nexport function getSupportEmail(): string {\n  return contactConfig.support.email;\n}\n\n/**\n * Get all social media links\n * الحصول على جميع روابط وسائل التواصل\n */\nexport function getSocialMediaLinks() {\n  return contactConfig.social;\n}\n\n/**\n * Format contact information for display\n * تنسيق معلومات الاتصال للعرض\n */\nexport function formatContactInfo(): string {\n  return `\n    البريد الإلكتروني: ${contactConfig.primary.email}\n    الهاتف: ${contactConfig.primary.phone}\n    العنوان: ${contactConfig.primary.address}\n    ساعات الدعم: ${contactConfig.support.hours}\n  `;\n}\n\n/**\n * Send contact request\n * إرسال طلب اتصال\n */\nexport async function sendContactRequest(\n  name: string,\n  email: string,\n  phone: string,\n  message: string,\n  type: \"support\" | \"sales\" | \"feedback\" = \"support\"\n): Promise<boolean> {\n  try {\n    const contactEmail = getContactByType(type).email;\n\n    const response = await fetch(\"/api/contact/send\", {\n      method: \"POST\",\n      headers: {\n        \"Content-Type\": \"application/json\",\n      },\n      body: JSON.stringify({\n        name,\n        email,\n        phone,\n        message,\n        type,\n        contactEmail,\n      }),\n    });\n\n    return response.ok;\n  } catch (error) {\n    console.error(\"Error sending contact request:\", error);\n    return false;\n  }\n}\n"
+/**
+ * Contact Configuration
+ * إعدادات معلومات الاتصال
+ */
+
+export const contactConfig = {
+  // Primary contact information
+  // معلومات الاتصال الأساسية
+  primary: {
+    email: "boss1291boss@gmail.com",
+    phone: "+966",
+    address: "المملكة العربية السعودية",
+    country: "SA",
+    timezone: "Asia/Riyadh",
+  },
+
+  // Support contact information
+  // معلومات الدعم الفني
+  support: {
+    email: "boss1291boss@gmail.com",
+    phone: "+966",
+    website: "https://casengine.com/support",
+    hours: "24/7",
+    languages: ["ar", "en"],
+  },
+
+  // Sales contact information
+  // معلومات المبيعات
+  sales: {
+    email: "boss1291boss@gmail.com",
+    phone: "+966",
+    website: "https://casengine.com/sales",
+  },
+
+  // Billing contact information
+  // معلومات الفواتير
+  billing: {
+    email: "boss1291boss@gmail.com",
+    phone: "+966",
+  },
+
+  // Technical contact information
+  // معلومات الدعم الفني
+  technical: {
+    email: "boss1291boss@gmail.com",
+    phone: "+966",
+    slack: "#support",
+  },
+
+  // Social media links
+  // روابط وسائل التواصل الاجتماعي
+  social: {
+    github: "https://github.com/ossamaamr/law-firm-management",
+    linkedin: "https://linkedin.com/company/casengine",
+    twitter: "https://twitter.com/casengine",
+    facebook: "https://facebook.com/casengine",
+    instagram: "https://instagram.com/casengine",
+    youtube: "https://youtube.com/@casengine",
+  },
+
+  // Office locations
+  // مواقع المكاتب
+  offices: [
+    {
+      name: "المقر الرئيسي",
+      country: "السعودية",
+      city: "الرياض",
+      address: "المملكة العربية السعودية",
+      phone: "+966",
+      email: "boss1291boss@gmail.com",
+      timezone: "Asia/Riyadh",
+    },
+  ],
+
+  // Company information
+  // معلومات الشركة
+  company: {
+    name: "CasEngine",
+    legalName: "نظام إدارة مكتب المحاماة",
+    description: "نظام إدارة متكامل وشامل لمكاتب المحاماة",
+    founded: 2026,
+    website: "https://casengine.com",
+    logo: "/logo.png",
+  },
+
+  // Emergency contact
+  // جهات الاتصال الطارئة
+  emergency: {
+    email: "boss1291boss@gmail.com",
+    phone: "+966",
+    whatsapp: "+966",
+  },
+
+  // Newsletter subscription
+  // الاشتراك في النشرة البريدية
+  newsletter: {
+    email: "boss1291boss@gmail.com",
+    frequency: "weekly",
+    topics: ["updates", "tips", "news"],
+  },
+
+  // Feedback and suggestions
+  // الملاحظات والاقتراحات
+  feedback: {
+    email: "boss1291boss@gmail.com",
+    form: "https://casengine.com/feedback",
+  },
+
+  // Bug reporting
+  // الإبلاغ عن الأخطاء
+  bugReport: {
+    email: "boss1291boss@gmail.com",
+    github: "https://github.com/ossamaamr/law-firm-management/issues",
+  },
+
+  // Security contact
+  // جهات الاتصال الأمنية
+  security: {
+    email: "boss1291boss@gmail.com",
+    pgpKey: "https://casengine.com/security/pgp-key",
+  },
+};
+
+/**
+ * Get contact information by type
+ * الحصول على معلومات الاتصال حسب النوع
+ */
+export function getContactByType(
+  type: "support" | "sales" | "billing" | "technical" | "emergency"
+) {
+  return contactConfig[type];
+}
+
+/**
+ * Get primary contact email
+ * الحصول على البريد الإلكتروني الأساسي
+ */
+export function getPrimaryEmail(): string {
+  return contactConfig.primary.email;
+}
+
+/**
+ * Get primary phone number
+ * الحصول على رقم الهاتف الأساسي
+ */
+export function getPrimaryPhone(): string {
+  return contactConfig.primary.phone;
+}
+
+/**
+ * Get support email
+ * الحصول على بريد الدعم الفني
+ */
+export function getSupportEmail(): string {
+  return contactConfig.support.email;
+}
+
+/**
+ * Get all social media links
+ * الحصول على جميع روابط وسائل التواصل
+ */
+export function getSocialMediaLinks() {
+  return contactConfig.social;
+}
+
+/**
+ * Format contact information for display
+ * تنسيق معلومات الاتصال للعرض
+ */
+export function formatContactInfo(): string {
+  return `
+    البريد الإلكتروني: ${contactConfig.primary.email}
+    الهاتف: ${contactConfig.primary.phone}
+    العنوان: ${contactConfig.primary.address}
+    ساعات الدعم: ${contactConfig.support.hours}
+  `;
+}
+
+/**
+ * Send contact request
+ * إرسال طلب اتصال
+ */
+export async function sendContactRequest(
+  name: string,
+  email: string,
+  phone: string,
+  message: string,
+  type: "support" | "sales" | "feedback" = "support"
+): Promise<boolean> {
+  try {
+    const contactEmail = type === "feedback"
+      ? contactConfig.feedback.email
+      : getContactByType(type).email;
+
+    const response = await fetch("/api/contact/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        phone,
+        message,
+        type,
+        contactEmail,
+      }),
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.error("Error sending contact request:", error);
+    return false;
+  }
+}
