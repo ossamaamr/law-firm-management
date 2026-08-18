@@ -48,19 +48,20 @@ export const CasEngineDashboard: React.FC = () => {
 
   const isRTL = language === 'ar';
 
-  const casesQuery = trpc.cases.list.useQuery({}, { enabled: Boolean(user?.lawFirmId) });
-  const clientsQuery = trpc.clients.list.useQuery(undefined, { enabled: Boolean(user?.lawFirmId) });
-  const firmCases = casesQuery.data ?? [];
+  const dashboardQuery = trpc.dashboard.summary.useQuery(undefined, {
+    enabled: Boolean(user?.lawFirmId),
+  });
+  const summary = dashboardQuery.data;
   const stats: DashboardStats = {
-    totalCases: firmCases.length,
-    openCases: firmCases.filter((item) => item.status === 'open').length,
-    pendingCases: firmCases.filter((item) => item.status === 'pending').length,
-    closedCases: firmCases.filter((item) => item.status === 'closed').length,
-    totalClients: clientsQuery.data?.length ?? 0,
-    totalMatters: null,
-    pendingInvoices: null,
-    totalRevenue: null,
-    upcomingSessions: null,
+    totalCases: summary?.cases.total ?? 0,
+    openCases: summary?.cases.open ?? 0,
+    pendingCases: summary?.cases.pending ?? 0,
+    closedCases: summary?.cases.closed ?? 0,
+    totalClients: summary?.clients.total ?? 0,
+    totalMatters: summary?.matters.total ?? null,
+    pendingInvoices: summary?.invoices.pendingCount ?? null,
+    totalRevenue: summary?.invoices.totalFinalAmount ?? null,
+    upcomingSessions: summary?.upcomingSessions ?? null,
   };
 
   const caseStatusData: ChartData[] = [
@@ -69,7 +70,9 @@ export const CasEngineDashboard: React.FC = () => {
     { name: t('closed'), value: stats.closedCases },
   ];
 
-  const revenueData: Array<{ month: string; revenue: number }> = [];
+  const revenueData: Array<{ month: string; revenue: number }> = summary
+    ? [{ month: language === 'ar' ? 'الفترة المحددة' : 'Selected period', revenue: summary.invoices.totalFinalAmount }]
+    : [];
 
   const navigationItems = [
     { id: 'overview', label: t('overview'), icon: Briefcase },

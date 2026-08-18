@@ -16,6 +16,7 @@ import {
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
 import { activityRouter } from "./activity.routes";
+import { getDashboardSummary } from "./dashboard.service";
 
 // ============ PROCEDURES ============
 
@@ -40,6 +41,15 @@ export const appRouter = router({
   
   auth: authRouter,
   activity: activityRouter,
+
+  dashboard: router({
+    summary: lawFirmProcedure
+      .input(z.object({
+        from: z.coerce.date().optional(),
+        to: z.coerce.date().optional(),
+      }).optional())
+      .query(({ input, ctx }) => getDashboardSummary(ctx.lawFirmId, input ?? {})),
+  }),
 
   // ============ CASES ROUTER ============
   cases: router({
