@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 /**
  * Authentication Hook
@@ -20,6 +20,11 @@ export interface SignupData {
   country?: string;
 }
 
+export function useAuth() {
+  const query = trpc.auth.me.useQuery();
+  return { user: query.data, isLoading: query.isLoading, error: query.error?.message ?? null };
+}
+
 export interface LoginData {
   firmIdentifier: string;
   userName: string;
@@ -29,7 +34,7 @@ export interface LoginData {
 export function useAuthSignup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const signupMutation = trpc.auth.signup.useMutation({
     onSuccess: (data) => {
@@ -69,14 +74,11 @@ export function useAuthSignup() {
 export function useAuthLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: (data) => {
       setError(null);
-      // Store token and redirect to dashboard
-      localStorage.setItem("authToken", data.token);
-      localStorage.setItem("firmIdentifier", data.user.firmIdentifier);
       navigate("/dashboard");
     },
     onError: (error) => {
@@ -111,11 +113,7 @@ export function useAuthLogin() {
 export function useVerifyIdentifier() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const verifyMutation = trpc.auth.verifyIdentifier.useQuery(
-    { firmIdentifier: "" },
-    { enabled: false }
-  );
+  const utils = trpc.useUtils();
 
   const verify = useCallback(
     async (firmIdentifier: string) => {
@@ -123,8 +121,7 @@ export function useVerifyIdentifier() {
       setError(null);
 
       try {
-        // TODO: Implement actual verification
-        return { exists: true, firmId: 1 };
+        return await utils.auth.verifyIdentifier.fetch({ firmIdentifier });
       } catch (err: any) {
         setError(err.message || "حدث خطأ أثناء التحقق");
         return { exists: false, firmId: null };
@@ -132,7 +129,7 @@ export function useVerifyIdentifier() {
         setIsLoading(false);
       }
     },
-    []
+    [utils]
   );
 
   return {

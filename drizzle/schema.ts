@@ -369,6 +369,25 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
 
 /**
+ * Activity Logs - سجل النشاطات التشغيلية
+ */
+export const activityLogs = mysqlTable("activityLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  firmId: int("firmId").notNull(),
+  userId: int("userId").notNull(),
+  actionType: varchar("actionType", { length: 32 }).notNull(),
+  entityType: varchar("entityType", { length: 64 }).notNull(),
+  entityId: int("entityId").notNull(),
+  entityName: varchar("entityName", { length: 255 }).notNull(),
+  changes: json("changes"),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = typeof activityLogs.$inferInsert;
+
+/**
  * Relations
  */
 export const usersRelations = relations(users, ({ one, many }) => (({

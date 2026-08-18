@@ -29,7 +29,7 @@ import {
   Calendar,
   DollarSign,
 } from "lucide-react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 /**
  * Dashboard Page - لوحة التحكم الرئيسية
@@ -56,7 +56,7 @@ interface ActivitySummary {
 export function DashboardPage() {
   const { user } = useAuth();
   const { activities, stats, isLoading } = useActivity();
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   // Mock data - replace with actual API calls
   const dashboardStats: DashboardStats = useMemo(() => ({

@@ -18,7 +18,7 @@ export const syncRouter = router({
       z.object({
         firmId: z.number().min(1),
         eventType: z.string().min(1),
-        data: z.record(z.any()).optional(),
+        data: z.record(z.string(), z.any()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -87,7 +87,7 @@ export const syncRouter = router({
         firmId: z.number().min(1),
         caseId: z.number().min(1),
         action: z.enum(['create', 'update', 'delete', 'status_change']),
-        changes: z.record(z.any()).optional(),
+        changes: z.record(z.string(), z.any()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -130,7 +130,7 @@ export const syncRouter = router({
         firmId: z.number().min(1),
         matterId: z.number().min(1),
         action: z.enum(['create', 'update', 'delete', 'status_change']),
-        changes: z.record(z.any()).optional(),
+        changes: z.record(z.string(), z.any()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -173,7 +173,7 @@ export const syncRouter = router({
         firmId: z.number().min(1),
         clientId: z.number().min(1),
         action: z.enum(['create', 'update', 'delete']),
-        changes: z.record(z.any()).optional(),
+        changes: z.record(z.string(), z.any()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -216,7 +216,7 @@ export const syncRouter = router({
         firmId: z.number().min(1),
         invoiceId: z.number().min(1),
         action: z.enum(['create', 'update', 'delete', 'paid', 'pending']),
-        changes: z.record(z.any()).optional(),
+        changes: z.record(z.string(), z.any()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -259,7 +259,7 @@ export const syncRouter = router({
         firmId: z.number().min(1),
         documentId: z.number().min(1),
         action: z.enum(['create', 'update', 'delete', 'upload']),
-        changes: z.record(z.any()).optional(),
+        changes: z.record(z.string(), z.any()).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {

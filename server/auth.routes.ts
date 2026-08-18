@@ -20,16 +20,31 @@ export const authRouter = router({
     return { success: true } as const;
   }),
 
-  signup: publicProcedure.input(z.record(z.string(), z.unknown())).mutation(() => unavailable()),
-  login: publicProcedure.input(z.record(z.string(), z.unknown())).mutation(() => unavailable()),
+  signup: publicProcedure.input(z.object({
+    hasExistingIdentifier: z.boolean(),
+    firmIdentifier: z.string().optional(),
+    fullName: z.string().min(2),
+    email: z.string().email(),
+    phone: z.string().min(10),
+    birthDate: z.string(),
+    firmName: z.string().optional(),
+    licenseNumber: z.string().optional(),
+    city: z.string().optional(),
+    country: z.string().optional(),
+  })).mutation(() => unavailable()),
+  login: publicProcedure.input(z.object({
+    firmIdentifier: z.string().min(1),
+    userName: z.string().min(2),
+    password: z.string().min(6),
+  })).mutation(() => unavailable()),
   verifyIdentifier: publicProcedure
     .input(z.object({ firmIdentifier: z.string().min(1) }))
     .query(() => unavailable()),
   getPendingRequests: protectedProcedure.query(() => unavailable()),
   approveRegistration: protectedProcedure
-    .input(z.record(z.string(), z.unknown()))
+    .input(z.object({ requestId: z.number(), firmName: z.string().min(1) }))
     .mutation(() => unavailable()),
   rejectRegistration: protectedProcedure
-    .input(z.record(z.string(), z.unknown()))
+    .input(z.object({ requestId: z.number(), rejectionReason: z.string().min(1) }))
     .mutation(() => unavailable()),
 });

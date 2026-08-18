@@ -21,7 +21,7 @@ import {
   Filter,
   Calendar,
 } from "lucide-react";
-import { useLanguage } from "@/_core/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Mock data for activities
 const mockActivities = [

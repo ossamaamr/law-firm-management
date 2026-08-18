@@ -3,7 +3,22 @@
  * ربط الواجهة الأمامية مع الـ API الخلفي
  */
 
-import { trpc } from './trpc';
+type TrpcResponse<T> = { result?: { data?: { json?: T } | T } };
+
+async function call<T>(path: string, input?: unknown): Promise<T> {
+  const response = await fetch(`/api/trpc/${path}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ json: input }),
+  });
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  const payload = (await response.json()) as TrpcResponse<T>;
+  const data = payload.result?.data;
+  if (data && typeof data === "object" && "json" in data) return data.json as T;
+  if (data !== undefined) return data as T;
+  throw new Error("Empty tRPC response");
+}
 
 /**
  * Authentication API Integration
@@ -27,7 +42,7 @@ export const authAPI = {
     country?: string;
   }) {
     try {
-      const result = await trpc.auth.signup.mutate(data);
+      const result = await call("auth.signup", data);
       return {
         success: true,
         data: result,
@@ -52,12 +67,7 @@ export const authAPI = {
     password: string;
   }) {
     try {
-      const result = await trpc.auth.login.mutate(data);
-      // Store token in localStorage
-      if (result.token) {
-        localStorage.setItem('auth_token', result.token);
-        localStorage.setItem('user_firm', result.user.firmIdentifier);
-      }
+      const result = await call("auth.login", data);
       return {
         success: true,
         data: result,
@@ -78,9 +88,7 @@ export const authAPI = {
    */
   async verifyIdentifier(firmIdentifier: string) {
     try {
-      const result = await trpc.auth.verifyIdentifier.query({
-        firmIdentifier,
-      });
+      const result = await call("auth.verifyIdentifier", { firmIdentifier });
       return {
         success: true,
         data: result,
@@ -103,7 +111,7 @@ export const authAPI = {
     offset?: number;
   }) {
     try {
-      const result = await trpc.auth.getPendingRequests.query(filters || {});
+      const result = await call("auth.getPendingRequests");
       return {
         success: true,
         data: result,
@@ -125,7 +133,7 @@ export const authAPI = {
     firmName: string;
   }) {
     try {
-      const result = await trpc.auth.approveRegistration.mutate(data);
+      const result = await call("auth.approveRegistration", data);
       return {
         success: true,
         data: result,
@@ -149,7 +157,7 @@ export const authAPI = {
     rejectionReason: string;
   }) {
     try {
-      const result = await trpc.auth.rejectRegistration.mutate(data);
+      const result = await call("auth.rejectRegistration", data);
       return {
         success: true,
         data: result,
@@ -170,10 +178,7 @@ export const authAPI = {
    */
   async logout() {
     try {
-      await trpc.auth.logout.mutate();
-      // Clear stored data
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user_firm');
+      await call("auth.logout");
       return {
         success: true,
         message: 'تم تسجيل الخروج بنجاح',
@@ -207,7 +212,8 @@ export const activityAPI = {
     dateTo?: string;
   }) {
     try {
-      const result = await trpc.activity.getLogs.query(filters);
+      const { dateFrom: _dateFrom, dateTo: _dateTo, ...activityFilters } = filters;
+      const result = await call<{ data: unknown; count: number }>("activity.getLogs", activityFilters);
       return {
         success: true,
         data: result.data,
@@ -227,7 +233,7 @@ export const activityAPI = {
    */
   async getStats(firmId: number) {
     try {
-      const result = await trpc.activity.getStats.query({ firmId });
+      const result = await call("activity.getStats", { firmId });
       return {
         success: true,
         data: result,
@@ -250,7 +256,7 @@ export const activityAPI = {
     entityType?: string;
   }) {
     try {
-      const result = await trpc.activity.exportCSV.query(filters);
+      const result = await call<{ data: string; filename: string }>("activity.exportCSV", filters);
       return {
         success: true,
         data: result.data,
@@ -270,7 +276,7 @@ export const activityAPI = {
    */
   async getRecent(firmId: number, limit: number = 10) {
     try {
-      const result = await trpc.activity.getRecent.query({ firmId, limit });
+      const result = await call("activity.getRecent", { firmId, limit });
       return {
         success: true,
         data: result,
@@ -289,11 +295,7 @@ export const activityAPI = {
    */
   async getByEntity(firmId: number, entityType: string, entityId: number) {
     try {
-      const result = await trpc.activity.getByEntity.query({
-        firmId,
-        entityType,
-        entityId,
-      });
+      const result = await call("activity.getByEntity", { firmId, entityType, entityId });
       return {
         success: true,
         data: result,
@@ -312,11 +314,7 @@ export const activityAPI = {
    */
   async getByUser(firmId: number, userId: number, limit: number = 50) {
     try {
-      const result = await trpc.activity.getByUser.query({
-        firmId,
-        userId,
-        limit,
-      });
+      const result = await call("activity.getByUser", { firmId, userId, limit });
       return {
         success: true,
         data: result,
@@ -383,7 +381,7 @@ export const syncAPI = {
    */
   async broadcastUpdate(firmId: number, data: any) {
     try {
-      const result = await trpc.sync.broadcast.mutate({
+      const result = await call("sync.broadcast", {
         firmId,
         data,
       });

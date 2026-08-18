@@ -9,7 +9,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
-import { useLanguage } from "@/_core/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Validation schemas
 const step1Schema = z.object({

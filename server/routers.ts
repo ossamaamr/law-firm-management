@@ -15,6 +15,7 @@ import {
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
+import { activityRouter } from "./activity.routes";
 
 // ============ PROCEDURES ============
 
@@ -38,6 +39,7 @@ export const appRouter = router({
   system: systemRouter,
   
   auth: authRouter,
+  activity: activityRouter,
 
   // ============ CASES ROUTER ============
   cases: router({

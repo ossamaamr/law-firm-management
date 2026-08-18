@@ -17,6 +17,7 @@ describe("Activity Logging Routes", () => {
       name: "أحمد محمد",
       email: "ahmad@example.com",
       role: "user" as const,
+      lawFirmId: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
       lastSignedIn: new Date(),

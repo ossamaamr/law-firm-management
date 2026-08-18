@@ -30,7 +30,9 @@ export const activityRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
-        // TODO: Verify user has access to this firm
+        if (ctx.user.lawFirmId !== input.firmId) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
         const logs = await getActivityLogs(input.firmId, {
           limit: input.limit,
           offset: input.offset,
@@ -61,7 +63,9 @@ export const activityRouter = router({
     .input(z.object({ firmId: z.number() }))
     .query(async ({ input, ctx }) => {
       try {
-        // TODO: Verify user has access to this firm
+        if (ctx.user.lawFirmId !== input.firmId) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
         const stats = await getActivityStats(input.firmId);
 
         return {
@@ -92,7 +96,9 @@ export const activityRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
-        // TODO: Verify user has access to this firm
+        if (ctx.user.lawFirmId !== input.firmId) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
         const csv = await exportActivitiesAsCSV(input.firmId, {
           actionType: input.actionType,
           userId: input.userId,
@@ -121,7 +127,9 @@ export const activityRouter = router({
     .input(z.object({ firmId: z.number(), limit: z.number().optional().default(10) }))
     .query(async ({ input, ctx }) => {
       try {
-        // TODO: Verify user has access to this firm
+        if (ctx.user.lawFirmId !== input.firmId) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
         const logs = await getActivityLogs(input.firmId, {
           limit: input.limit,
         });
@@ -153,7 +161,9 @@ export const activityRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
-        // TODO: Verify user has access to this firm
+        if (ctx.user.lawFirmId !== input.firmId) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
         const logs = await getActivityLogs(input.firmId, {
           entityType: input.entityType,
           limit: 100,
@@ -191,7 +201,9 @@ export const activityRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
-        // TODO: Verify user has access to this firm
+        if (ctx.user.lawFirmId !== input.firmId) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
         const logs = await getActivityLogs(input.firmId, {
           userId: input.userId,
           limit: input.limit,

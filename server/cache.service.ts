@@ -80,7 +80,7 @@ export const cacheService = {
     let totalEntries = 0;
     let expiredEntries = 0;
 
-    for (const [, entry] of cacheStore.entries()) {
+    for (const [, entry] of Array.from(cacheStore.entries())) {
       totalEntries++;
       totalHits += entry.hits;
 
@@ -105,7 +105,7 @@ export const cacheService = {
     let removed = 0;
     const now = Date.now();
 
-    for (const [key, entry] of cacheStore.entries()) {
+    for (const [key, entry] of Array.from(cacheStore.entries())) {
       if (now > entry.expiresAt) {
         cacheStore.delete(key);
         removed++;
@@ -142,7 +142,7 @@ export const cacheService = {
     let removed = 0;
     const regex = new RegExp(pattern);
 
-    for (const key of cacheStore.keys()) {
+    for (const key of Array.from(cacheStore.keys())) {
       if (regex.test(key)) {
         cacheStore.delete(key);
         removed++;

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
-import { useLanguage } from "@/_core/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Validation schema
 const loginSchema = z.object({

@@ -8,10 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, XCircle, Clock, AlertCircle, Search, Mail } from "lucide-react";
-import { useLanguage } from "@/_core/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Mock data for demonstration
-const mockRequests = [
+const mockRequests: RegistrationRequest[] = [
   {
     id: 1,
     email: "ahmed@example.com",

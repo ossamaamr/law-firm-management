@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import { activityLogs } from "../drizzle/schema";
 import { TRPCError } from "@trpc/server";
+import { and, desc, eq } from "drizzle-orm";
 
 /**
  * Activity Logging Service
@@ -43,7 +44,7 @@ export async function logActivity(input: ActivityLogInput): Promise<void> {
       entityType: input.entityType,
       entityId: input.entityId,
       entityName: input.entityName,
-      changes: input.changes ? JSON.stringify(input.changes) : null,
+      changes: input.changes ?? null,
       ipAddress: input.ipAddress || "unknown",
       createdAt: new Date(),
     });
@@ -75,39 +76,23 @@ export async function getActivityLogs(
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
   try {
-    let query = db
+    const conditions = [eq(activityLogs.firmId, firmId)];
+    if (options?.actionType) conditions.push(eq(activityLogs.actionType, options.actionType));
+    if (options?.userId) conditions.push(eq(activityLogs.userId, options.userId));
+    if (options?.entityType) conditions.push(eq(activityLogs.entityType, options.entityType));
+
+    const results = await db
       .select()
       .from(activityLogs)
-      .where((col) => col.firmId === firmId);
-
-    // Apply filters
-    if (options?.actionType) {
-      query = query.where((col) => col.actionType === options.actionType);
-    }
-    if (options?.userId) {
-      query = query.where((col) => col.userId === options.userId);
-    }
-    if (options?.entityType) {
-      query = query.where((col) => col.entityType === options.entityType);
-    }
-
-    // Order by newest first
-    query = query.orderBy((col) => col.createdAt, "desc");
-
-    // Apply pagination
-    if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-    if (options?.offset) {
-      query = query.offset(options.offset);
-    }
-
-    const results = await query;
+      .where(and(...conditions))
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(Math.min(Math.max(options?.limit ?? 50, 1), 1000))
+      .offset(Math.max(options?.offset ?? 0, 0));
 
     // Parse JSON changes
     return results.map((log: any) => ({
       ...log,
-      changes: log.changes ? JSON.parse(log.changes) : null,
+      changes: typeof log.changes === "string" ? JSON.parse(log.changes) : log.changes,
     }));
   } catch (error) {
     console.error("[Activity Log] Error fetching logs:", error);
@@ -144,7 +129,7 @@ export async function getActivityStats(firmId: number): Promise<{
     const allActivities = await db
       .select()
       .from(activityLogs)
-      .where((col) => col.firmId === firmId);
+      .where(eq(activityLogs.firmId, firmId));
 
     // Calculate statistics
     const todayActivities = allActivities.filter(
