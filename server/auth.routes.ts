@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 
 const unavailable = () => {
   throw new TRPCError({
@@ -40,11 +40,11 @@ export const authRouter = router({
   verifyIdentifier: publicProcedure
     .input(z.object({ firmIdentifier: z.string().min(1) }))
     .query(() => unavailable()),
-  getPendingRequests: protectedProcedure.query(() => unavailable()),
-  approveRegistration: protectedProcedure
+  getPendingRequests: adminProcedure.query(() => unavailable()),
+  approveRegistration: adminProcedure
     .input(z.object({ requestId: z.number(), firmName: z.string().min(1) }))
     .mutation(() => unavailable()),
-  rejectRegistration: protectedProcedure
+  rejectRegistration: adminProcedure
     .input(z.object({ requestId: z.number(), rejectionReason: z.string().min(1) }))
     .mutation(() => unavailable()),
 });

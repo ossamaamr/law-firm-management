@@ -9,6 +9,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getLoginUrl } from "@/const";
 
 // Validation schema
 const loginSchema = z.object({
@@ -136,34 +137,11 @@ export default function LoginPage() {
     setErrorMessage(null);
 
     try {
-      // TODO: Call API to verify credentials and fetch firm data
-      // For now, using mock data
-      const mockFirmData: FirmData = {
-        id: 1,
-        name: "مكتب أحمد للمحاماة",
-        city: "الرياض",
-        country: "السعودية",
-        employees: [
-          { id: 1, name: "أحمد محمد", role: "محامي", email: "ahmed@firm.com" },
-          { id: 2, name: "فاطمة علي", role: "محاسبة", email: "fatima@firm.com" },
-          { id: 3, name: "محمود سالم", role: "مساعد قانوني", email: "mahmoud@firm.com" },
-        ],
-        recentActivities: [
-          { id: 1, userName: "أحمد محمد", action: "إضافة", entityType: "ملف", timestamp: "2026-02-26 14:30" },
-          { id: 2, userName: "فاطمة علي", action: "تعديل", entityType: "فاتورة", timestamp: "2026-02-26 13:45" },
-          { id: 3, userName: "محمود سالم", action: "حذف", entityType: "مرفق", timestamp: "2026-02-26 12:20" },
-        ],
-      };
-
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      setLoginData(data);
-      setFirmData(mockFirmData);
-      setIsLoggedIn(true);
+      // Local credentials are intentionally not accepted. The platform OAuth
+      // session is the single authentication source of truth.
+      window.location.assign(getLoginUrl());
     } catch (error) {
       setErrorMessage(t.serverError);
-    } finally {
       setLoading(false);
     }
   };

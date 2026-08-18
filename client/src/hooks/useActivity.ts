@@ -71,7 +71,7 @@ export function useActivityStats(firmId: number) {
 
   const statsQuery = trpc.activity.getStats.useQuery(
     { firmId },
-    { enabled: false }
+    { enabled: firmId > 0 }
   );
 
   const getStats = useCallback(async () => {
@@ -147,7 +147,7 @@ export function useRecentActivities(firmId: number, limit: number = 10) {
 
   const recentQuery = trpc.activity.getRecent.useQuery(
     { firmId, limit },
-    { enabled: false }
+    { enabled: firmId > 0 }
   );
 
   const getRecent = useCallback(async () => {

@@ -11,6 +11,8 @@ import {
   FileText, Users, Briefcase, DollarSign, AlertCircle, Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { trpc } from '@/lib/trpc';
+import { useActivity } from '@/hooks/useActivity';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -22,10 +24,10 @@ interface DashboardStats {
   pendingCases: number;
   closedCases: number;
   totalClients: number;
-  totalMatters: number;
-  pendingInvoices: number;
-  totalRevenue: number;
-  upcomingSessions: number;
+  totalMatters: number | null;
+  pendingInvoices: number | null;
+  totalRevenue: number | null;
+  upcomingSessions: number | null;
 }
 
 interface ChartData {
@@ -40,22 +42,25 @@ export const CasEngineDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { language, toggleLanguage, t } = useLanguage();
+  const { activities } = useActivity();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
   const isRTL = language === 'ar';
 
-  // Mock data - replace with real data from API
+  const casesQuery = trpc.cases.list.useQuery({}, { enabled: Boolean(user?.lawFirmId) });
+  const clientsQuery = trpc.clients.list.useQuery(undefined, { enabled: Boolean(user?.lawFirmId) });
+  const firmCases = casesQuery.data ?? [];
   const stats: DashboardStats = {
-    totalCases: 24,
-    openCases: 12,
-    pendingCases: 8,
-    closedCases: 4,
-    totalClients: 18,
-    totalMatters: 20,
-    pendingInvoices: 3,
-    totalRevenue: 45000,
-    upcomingSessions: 5,
+    totalCases: firmCases.length,
+    openCases: firmCases.filter((item) => item.status === 'open').length,
+    pendingCases: firmCases.filter((item) => item.status === 'pending').length,
+    closedCases: firmCases.filter((item) => item.status === 'closed').length,
+    totalClients: clientsQuery.data?.length ?? 0,
+    totalMatters: null,
+    pendingInvoices: null,
+    totalRevenue: null,
+    upcomingSessions: null,
   };
 
   const caseStatusData: ChartData[] = [
@@ -64,14 +69,7 @@ export const CasEngineDashboard: React.FC = () => {
     { name: t('closed'), value: stats.closedCases },
   ];
 
-  const revenueData = [
-    { month: t('january'), revenue: 4000 },
-    { month: t('february'), revenue: 3000 },
-    { month: t('march'), revenue: 2000 },
-    { month: t('april'), revenue: 2780 },
-    { month: t('may'), revenue: 1890 },
-    { month: t('june'), revenue: 2390 },
-  ];
+  const revenueData: Array<{ month: string; revenue: number }> = [];
 
   const navigationItems = [
     { id: 'overview', label: t('overview'), icon: Briefcase },
@@ -244,7 +242,7 @@ export const CasEngineDashboard: React.FC = () => {
                       {stats.totalClients}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {stats.totalMatters} {t('matters')}
+                      {stats.totalMatters === null ? '—' : `${stats.totalMatters} ${t('matters')}`}
                     </p>
                   </CardContent>
                 </Card>
@@ -257,10 +255,10 @@ export const CasEngineDashboard: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold text-red-600 dark:text-red-400">
-                      {stats.pendingInvoices}
+                      {stats.pendingInvoices === null ? '—' : stats.pendingInvoices}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      بقيمة ${stats.totalRevenue}
+                      {stats.totalRevenue === null ? 'بيانات الفواتير غير متاحة بعد' : `بقيمة $${stats.totalRevenue}`}
                     </p>
                   </CardContent>
                 </Card>
@@ -273,7 +271,7 @@ export const CasEngineDashboard: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                      {stats.upcomingSessions}
+                      {stats.upcomingSessions === null ? '—' : stats.upcomingSessions}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                       في الـ 7 أيام القادمة
@@ -345,17 +343,19 @@ export const CasEngineDashboard: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-start gap-4 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                    {activities.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">لا توجد نشاطات مسجلة بعد.</p>
+                    ) : activities.slice(0, 5).map((activity) => (
+                      <div key={activity.id} className="flex items-start gap-4 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-0">
                         <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
                           <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            تم إضافة قضية جديدة
+                            {activity.actionType} — {activity.entityType}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            قضية رقم #2024-001 - قبل ساعة
+                            {activity.entityName} · {new Date(activity.createdAt).toLocaleString(language === 'ar' ? 'ar-SA' : 'en-US')}
                           </p>
                         </div>
                       </div>

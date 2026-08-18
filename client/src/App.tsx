@@ -9,12 +9,14 @@ import Home from "./pages/Home";
 import { CasEngineDashboard } from "./components/CasEngineDashboard";
 import Clients from "./pages/Clients";
 import Cases from "./pages/Cases";
+import LoginPage from "./pages/LoginPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/ "} component={CasEngineDashboard} />
+      <Route path={"/"} component={CasEngineDashboard} />
+      <Route path={"/login"} component={LoginPage} />
       <Route path={"/dashboard"} component={CasEngineDashboard} />
       <Route path={"/clients"} component={Clients} />
       <Route path={"/cases"} component={Cases} />

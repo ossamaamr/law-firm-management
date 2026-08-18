@@ -69,6 +69,22 @@ describe("Authentication Routes", () => {
       .rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
+  it("rejects ordinary users from registration administration", async () => {
+    const user = {
+      id: 2,
+      openId: "ordinary-user",
+      name: "User",
+      email: "user@example.com",
+      role: "user" as const,
+      lawFirmId: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    };
+    await expect(appRouter.createCaller(makeContext(user)).auth.getPendingRequests())
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
   it("does not pretend to approve a registration request", async () => {
     const admin = {
       id: 1,
