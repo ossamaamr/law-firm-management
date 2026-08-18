@@ -2,12 +2,14 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
+const describeDatabase = process.env.DATABASE_URL ? describe : describe.skip;
+
 /**
  * Activity Logging Tests
  * اختبارات تسجيل النشاطات
  */
 
-describe("Activity Logging Routes", () => {
+describeDatabase("Activity Logging Routes", () => {
   let ctx: TrpcContext;
 
   beforeEach(() => {

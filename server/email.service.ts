@@ -27,6 +27,9 @@ export async function sendRegistrationRequestEmail(
   },
   adminEmail: string
 ): Promise<boolean> {
+  // No approved provider is wired in this repository; never claim delivery.
+  return false;
+
   const html = `
     <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; background-color: #f5f5f5; padding: 20px;">
       <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -115,6 +118,9 @@ export async function sendApprovalEmail(
   firmName: string,
   identifier: string
 ): Promise<boolean> {
+  // No approved provider is wired in this repository; never claim delivery.
+  return false;
+
   const html = `
     <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; background-color: #f5f5f5; padding: 20px;">
       <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -183,6 +189,9 @@ export async function sendRejectionEmail(
   userName: string,
   rejectionReason: string
 ): Promise<boolean> {
+  // No approved provider is wired in this repository; never claim delivery.
+  return false;
+
   const html = `
     <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; background-color: #f5f5f5; padding: 20px;">
       <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -238,6 +247,9 @@ export async function sendActivityNotificationEmail(
     timestamp: Date;
   }
 ): Promise<boolean> {
+  // No approved provider is wired in this repository; never claim delivery.
+  return false;
+
   const html = `
     <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; background-color: #f5f5f5; padding: 20px;">
       <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">

@@ -4,7 +4,9 @@ import { getDb } from "./db";
 import { eq } from "drizzle-orm";
 import { clients, lawFirms, users } from "../drizzle/schema";
 
-describe("Clients Router", () => {
+const describeDatabase = process.env.DATABASE_URL ? describe : describe.skip;
+
+describeDatabase("Clients Router", () => {
   let testLawFirmId: number;
   let testUserId: number;
   let testClientId: number;

@@ -165,7 +165,7 @@ export const phoneService = {
    */
   validate(phone: string): boolean {
     // Support international format: +966501234567
-    const pattern = /^\+?[1-9]\d{1,14}$/;
+    const pattern = /^\+?[1-9]\d{6,14}$/;
     return pattern.test(phone);
   },
 

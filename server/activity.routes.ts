@@ -47,6 +47,7 @@ export const activityRouter = router({
           count: logs.length,
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error fetching activity logs:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -73,6 +74,7 @@ export const activityRouter = router({
           data: stats,
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error fetching activity stats:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -111,6 +113,7 @@ export const activityRouter = router({
           filename: `activity-logs-${new Date().toISOString().split("T")[0]}.csv`,
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error exporting activity logs:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -139,6 +142,7 @@ export const activityRouter = router({
           data: logs,
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error fetching recent activities:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -179,6 +183,7 @@ export const activityRouter = router({
           data: filtered,
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error fetching entity activities:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -214,6 +219,7 @@ export const activityRouter = router({
           data: logs,
         };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error fetching user activities:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",

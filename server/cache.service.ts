@@ -230,7 +230,7 @@ export const performanceMonitor = {
   ): Promise<{ result: T; duration: number }> {
     const start = performance.now();
     const result = await fn();
-    const duration = performance.now() - start;
+    const duration = Math.ceil(performance.now() - start);
 
     console.log(`[PERF] ${name}: ${duration.toFixed(2)}ms`);
 
@@ -311,7 +311,7 @@ export const batchProcessor = {
     const worker = async () => {
       while (queue.length > 0) {
         const item = queue.shift();
-        if (item) {
+        if (item !== undefined) {
           const result = await processor(item);
           results.push(result);
         }

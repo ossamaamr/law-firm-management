@@ -39,15 +39,13 @@ describe("Cache Service", () => {
       expect(cacheService.get("test-key")).toBeNull();
     });
 
-    it("should expire cached value after TTL", (done) => {
+    it("should expire cached value after TTL", async () => {
       cacheService.set("test-key", { data: "value" }, 100); // 100ms TTL
 
       expect(cacheService.get("test-key")).not.toBeNull();
 
-      setTimeout(() => {
-        expect(cacheService.get("test-key")).toBeNull();
-        done();
-      }, 150);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(cacheService.get("test-key")).toBeNull();
     });
 
     it("should clear all cache", () => {
@@ -81,18 +79,16 @@ describe("Cache Service", () => {
       expect(stats.totalHits).toBeGreaterThanOrEqual(0);
     });
 
-    it("should cleanup expired entries", (done) => {
+    it("should cleanup expired entries", async () => {
       cacheService.set("key1", "value1", 50);
       cacheService.set("key2", "value2", 5000);
 
-      setTimeout(() => {
-        const removed = cacheService.cleanup();
-        expect(removed).toBeGreaterThan(0);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const removed = cacheService.cleanup();
+      expect(removed).toBeGreaterThan(0);
 
-        const stats = cacheService.getStats();
-        expect(stats.totalEntries).toBeLessThan(2);
-        done();
-      }, 100);
+      const stats = cacheService.getStats();
+      expect(stats.totalEntries).toBeLessThan(2);
     });
   });
 
