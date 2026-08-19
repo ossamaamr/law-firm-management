@@ -6,7 +6,7 @@
 
 ## القرار
 
-التصنيف الحالي هو **NOT READY**. اجتازت الشيفرة بوابات النوع والاختبارات والبناء، لكن لا تزال هناك حواجز إطلاق موضوعية: لا توجد MySQL تشغيلية متاحة في بيئة التحقق الحالية لتطبيق migrations وتشغيل الاختبارات المتخطية، و`pnpm audit --audit-level=high` ما زال يرصد 6 ثغرات High، كما أن transactional outbox لم يُربط بعد بكل mutations الحساسة ولم يُثبت worker متعدد النسخ في بيئة تشغيل حقيقية.
+التصنيف الحالي هو **NOT READY**. اجتازت الشيفرة بوابات النوع والاختبارات والبناء، وأُغلقت advisories npm الستة ذات التصنيف High عبر تحديثات مباشرة وoverrides مثبتة في lockfile. لا تزال حواجز إطلاق موضوعية: لا توجد MySQL تشغيلية متاحة في بيئة التحقق الحالية لتطبيق migrations وتشغيل الاختبارات المتخطية، كما أن transactional outbox لم يُربط بعد بكل mutations الحساسة ولم يُثبت worker متعدد النسخ في بيئة تشغيل حقيقية.
 
 ## نتائج البوابات
 
@@ -17,7 +17,7 @@
 | `pnpm build` | ناجح | client وserver bundle ينتجان بنجاح |
 | `git diff --check` | ناجح | لا توجد أخطاء whitespace في التغييرات الحالية |
 | `pnpm drizzle-kit check` | ناجح | journal وsnapshots متسقة باستخدام عنوان اتصال توليدي مؤقت غير محفوظ |
-| `pnpm audit --audit-level=high` | فاشل | 45 advisory: 6 High و31 Moderate و8 Low |
+| `pnpm audit --audit-level=high` | ناجح | 0 High؛ بقيت 4 advisories: 1 Low و3 Moderate |
 | MySQL readiness | غير متاح | `mysqladmin ping` فشل لعدم وجود خادم محلي؛ لم تُطبق migrations على قاعدة حقيقية |
 | `/health/live` | مقبول | لا يعتمد على قاعدة البيانات |
 | `/health/ready` | محمي | لا يعيد ready دون database وstorage، وفي production يتطلب production configuration كذلك |
@@ -28,7 +28,7 @@
 
 يجب توفير `DATABASE_URL` حقيقي، وتشغيل الاختبارات الثلاثين المتخطية على قاعدة اختبار نظيفة، وإثبات Firm A/Firm B isolation، وrollback وrestore. يجب أيضًا تشغيل worker أو scheduler فعلي لـ`drainAuditOutbox` مع مراقبة `pending`, `processing`, `failed`, و`processed`، وإثبات عدم تكرار projections عند retry أو crash.
 
-يجب معالجة advisories ذات التصنيف High أو توثيق mitigation مقبول رسميًا مع استثناء أمني محدد، ثم إعادة تشغيل `pnpm audit --audit-level=high`. لا يكفي نجاح البناء وحده لتجاوز هذه البوابة.
+أُغلقت advisories High الحالية بتحديث `express` إلى 5.2.1، و`streamdown` إلى 2.5.0، وتثبيت overrides لـ`rollup >=4.59.0` و`form-data >=4.0.6` و`nanoid >=5.1.16` و`lodash >=4.18.0` و`lodash-es >=4.18.1` و`path-to-regexp >=0.1.13`. يجب إبقاء `pnpm audit --audit-level=high` في CI حتى لا تعود advisory غير معالجة؛ بقيت advisories Moderate/Low وتتطلب دورة معالجة لاحقة، لكنها لم تعد High.
 
 ## أوامر القبول الموصى بها
 

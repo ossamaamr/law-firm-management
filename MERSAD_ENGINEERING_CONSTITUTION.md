@@ -627,6 +627,12 @@
 
 وُسع `docs/MERSAD_DB_PREFLIGHT.sql` ليغطي orphan وcross-tenant checks للمطالبات والفواتير والledger وسجلات التدقيق و`auditOutbox`، وليوثق migrations `0014` و`0015` و`0016` والتحقق من `information_schema`. أضيف `docs/MERSAD_PRODUCTION_READINESS.md` كسجل قبول نهائي يوضح الأوامر والنتائج والقيود.
 
-نجحت بوابات `pnpm check` و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا** و`pnpm build` و`git diff --check` و`pnpm drizzle-kit check`. فشل `pnpm audit --audit-level=high` مع **6 High advisories**، وفشل `mysqladmin ping` لعدم وجود خادم MySQL في بيئة التنفيذ؛ لذلك لم تُطبق migrations ولم تُشغل اختبارات التكامل الثلاثون المعتمدة على `DATABASE_URL`.
+نجحت بوابات `pnpm check` و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا** و`pnpm build` و`git diff --check` و`pnpm drizzle-kit check`. بعد معالجة الاعتماديات، أصبحت `pnpm audit --audit-level=high` ناجحة بنتيجة **0 High**، مع بقاء 1 Low و3 Moderate. وفشل `mysqladmin ping` لعدم وجود خادم MySQL في بيئة التنفيذ؛ لذلك لم تُطبق migrations ولم تُشغل اختبارات التكامل الثلاثون المعتمدة على `DATABASE_URL`.
 
-القرار النهائي الصادق: **MERSAD BETA READY — NOT PRODUCTION READY**. لا يجوز تغيير القرار قبل تشغيل MySQL حقيقية، تنفيذ preflight بنتائج صفرية، تطبيق migrations واختبار restore، تشغيل الاختبارات المتخطية، معالجة advisories عالية الخطورة، وإثبات تشغيل outbox worker متعدد النسخ واختبار اختراق مستقل.
+القرار النهائي الصادق: **MERSAD BETA READY — NOT PRODUCTION READY**. لا يجوز تغيير القرار قبل تشغيل MySQL حقيقية، تنفيذ preflight بنتائج صفرية، تطبيق migrations واختبار restore، تشغيل الاختبارات المتخطية، وإثبات تشغيل outbox worker متعدد النسخ واختبار اختراق مستقل.
+
+## 29. معالجة npm High Advisories — 2026-08-19
+
+أُغلقت advisories npm الستة ذات التصنيف High بعد تحديد مساراتها وتحديث الاعتماديات دون استخدام استثناءات audit. تمت ترقية `express` إلى `5.2.1` و`streamdown` إلى `2.5.0`، وثُبتت overrides في `pnpm-workspace.yaml` لـ`rollup` إلى `4.59.0` أو أحدث، و`path-to-regexp` إلى `0.1.13`، و`lodash` إلى `4.18.0` أو أحدث، و`lodash-es` إلى `4.18.1`، و`form-data` إلى `4.0.6`، و`nanoid` إلى `5.1.16`.
+
+بعد تثبيت lockfile وتشغيل البوابات، أصبحت `pnpm audit --audit-level=high` ناجحة بنتيجة **0 High**، مع بقاء **1 Low و3 Moderate** موثقة لدورة معالجة لاحقة. نجحت كذلك `pnpm check` و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا** و`pnpm build` و`git diff --check`. لا تُعد هذه المعالجة تصريحًا بالإطلاق؛ فالقيود المتعلقة بـMySQL والتكاملات المتخطية وoutbox worker والاختبار المستقل ما زالت قائمة.
