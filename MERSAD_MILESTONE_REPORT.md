@@ -505,3 +505,19 @@
 المنصة مناسبة لتجربة داخلية مضبوطة واختبارات قبول عربية/متعددة المستأجرين، لكنها لا تستحق تصنيف `PRODUCTION READY` أو `RELEASE CANDIDATE` بسبب بقاء scanner خارجي، restore drill إنتاجي، Client Portal وهوية العميل، دفتر مالي حقيقي، MFA، scheduler إنتاجي، اختبارات قاعدة البيانات المعزولة غير المشغلة في هذه البيئة، وHigh dependency advisories المتبقية.
 
 الحكم لا يمنع نجاح الوحدات الداخلية التي اجتازت البوابات، لكنه يمنع أي نشر أو ادعاء اكتمال تشغيلي للميزات المحظورة. لم يُنفذ نشر خارجي، ولم تُنشأ قاعدة إنتاجية، ولم تُخفَ نتائج audit السلبية.
+
+
+## دورة الاستمرار بعد Final Release Audit — 19 أغسطس 2026
+
+استُكملت مراجعة الحالة بعد commit التدقيق السابق. تمت مزامنة `node_modules` مع lockfile، والتحقق من أن الترقيات الموثقة قابلة للتثبيت عبر `pnpm install --frozen-lockfile`. كما أُعيد تشغيل dependency audit؛ لا توجد Critical advisories، بينما بقيت High advisories محدودة في مسارات upstream/dev مثل Rollup وExpress path-to-regexp وlodash التابعة لمكتبات الرسم/التحليل. لذلك بقي تصنيف الإنتاج محظورًا ولم تُحوّل هذه النتائج إلى `VERIFIED` اصطناعيًا.
+
+أُضيفت حالات اختبار جديدة إلى `server/tenant-isolation.test.ts` تمنع قراءة أو حذف عميل غير تابع للمكتب، وترفض إنشاء قضية عند غياب أي من العميل أو الملف أو المحامي المرتبط. نجح الاختبار المركز بنتيجة **6 اختبارات ناجحة**، كما نجح `pnpm check`.
+
+| الفحص | النتيجة |
+|---|---|
+| `pnpm check` | ناجح |
+| `pnpm vitest run server/tenant-isolation.test.ts` | ناجح: 6/6 |
+| dependency sync | ناجح عبر `pnpm install --frozen-lockfile` |
+| Critical dependency audit | ناجح بلا Critical advisories |
+
+لم يتغير تصنيف الإصدار: **BETA READY — NOT PRODUCTION READY**. السبب ما زال يتضمن غياب Client Portal وهوية العميل، دفتر مالي حقيقي، MFA، scanner خارجي، scheduler وrestore drill الإنتاجيين، واختبارات MySQL الكاملة في بيئة معتمدة، إضافة إلى High advisories المتبقية.

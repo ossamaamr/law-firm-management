@@ -39,6 +39,24 @@ describe("Tenant isolation and IDOR boundaries", () => {
       .rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  it("does not expose or delete a client from another tenant", async () => {
+    const caller = appRouter.createCaller(contextFor(2));
+    await expect(caller.clients.get(999999)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller.clients.delete(999999)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("rejects case creation when any related entity is unavailable", async () => {
+    const caller = appRouter.createCaller(contextFor(2));
+    await expect(caller.cases.create({
+      caseNumber: "AUDIT-001",
+      title: "Tenant boundary test",
+      caseType: "civil",
+      clientId: 999999,
+      lawyerId: 999999,
+      matterId: 999999,
+    })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
   it("does not expose documents through an unrelated case identifier", async () => {
     const caller = appRouter.createCaller(contextFor(2));
     await expect(caller.documents.listByCase(999999))

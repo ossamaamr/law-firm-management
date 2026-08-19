@@ -61,3 +61,8 @@
 ## إعادة احتساب Final Release Audit
 
 عدد findings القابلة للعد بعد التدقيق المستقل: **28**. منها **26 VERIFIED/IMPLEMENTED أو BLOCKED بشكل موثق**، و0 PARTIAL/IN PROGRESS، و2 REMAINING/NOT STARTED (P3-001 AI وديون الإصدار المرتبطة بالبنية الخارجية). النسبة الحسابية الداخلية **26 / 28 = 92.86%**، لكنها ليست حكم جاهزية إنتاج.
+
+
+## Evidence update — continuation cycle
+
+تم توسيع `server/tenant-isolation.test.ts` إلى 6 اختبارات ناجحة تشمل منع قراءة/حذف عميل غير تابع للمكتب ورفض إنشاء قضية بعلاقات غير متاحة. كما ثبتت مزامنة الاعتماديات عبر `pnpm install --frozen-lockfile`، وأثبت `pnpm audit --audit-level=critical` عدم وجود Critical advisories. بقيت High advisories المحدودة في P2-008 مصنفة `BLOCKED upstream`، ولم تُحتسب كإصلاح كامل.
