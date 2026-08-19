@@ -19,7 +19,7 @@
 | الفحص | النتيجة | التفسير |
 |---|---:|---|
 | `pnpm check` | ناجح | لا يثبت أمن runtime أو صحة قاعدة البيانات |
-| `pnpm test` | 138 ناجحًا، 30 متخطيًا | الاختبارات المتخطية مرتبطة بغياب `DATABASE_URL`؛ لا تثبت تكامل MySQL |
+| `pnpm test` | 144 ناجحًا، 30 متخطيًا | الاختبارات المتخطية مرتبطة بغياب `DATABASE_URL`؛ لا تثبت تكامل MySQL |
 | `pnpm build` | ناجح | لا يثبت حماية endpoints أو الإعدادات الإنتاجية |
 | `git diff --check` | ناجح | فحص تنسيق whitespace فقط |
 | `pnpm audit --audit-level=high` | فاشل | 45 advisory:‏ 6 High و31 Moderate و8 Low |
@@ -28,35 +28,35 @@
 
 ## 3. Findings الأمنية الحرجة والعالية
 
-### F-001 — غياب CSRF/Origin protection على Cookie-authenticated mutations
+### F-001 — غياب CSRF/Origin protection على Cookie-authenticated mutations — CLOSED IN CODE, ACCEPTANCE PENDING
 
 **الخطورة:** Critical بالنسبة لمسارات upload/branding، وHigh على مستوى request hardening العام.
 
-**الدليل:** `server/_core/index.ts` يركب `/api/documents` و`/api/branding` و`/api/trpc` دون CSRF middleware أو Origin/Referer validation. `server/_core/cookies.ts` يضبط `sameSite: "none"`. `client/src/main.tsx` يرسل `credentials: "include"` لكل طلب tRPC، و`server/branding-upload.routes.ts` و`server/document-upload.routes.ts` يقبلان POST بملف اعتمادًا على Cookie فقط.
+**الدليل السابق:** `server/_core/index.ts` كان يركب `/api/documents` و`/api/branding` و`/api/trpc` دون CSRF middleware أو Origin/Referer validation. **الإصلاح الحالي:** أضيفت `server/_core/request-security.ts`، ورُكبت قبل المسارات في bootstrap، وأضيفت اختبارات missing-origin وforeign-origin وdouble-submit. ما زال browser/proxy acceptance مطلوبًا قبل اعتبار الحماية production-proven.
 
 **الأثر:** يمكن لموقع خارجي محاولة إرسال multipart POST مع Cookie الضحية إلى مسارات حساسة. لا توجد حماية صريحة تمنع ذلك. الأثر الأكبر هو تغيير Branding ورفع مستندات أو استهلاك storage؛ ويجب اختبار ذلك بمتصفح حقيقي خلف proxy، لا افتراض أن CORS يعالج CSRF.
 
-**الإصلاح الإلزامي:** إضافة Origin allow-list موثوقة وCSRF token مرتبط بالجلسة لكل state-changing request، أو اعتماد سياسة Cookie مناسبة مع دفاعات إضافية؛ تغطية tRPC وmultipart معًا؛ إضافة tests تمنع missing/foreign Origin وtoken.
+**حالة الإغلاق:** أضيفت Origin allow-list وCSRF double-submit token تغطي tRPC وmultipart، مع اختبارات missing/foreign Origin وtoken. المتبقي browser/proxy acceptance واختبار متصفح حقيقي خلف البنية الإنتاجية.
 
-### F-002 — OAuth callback لا يثبت state/nonce server-side
+### F-002 — OAuth callback لا يثبت state/nonce server-side — CLOSED IN CODE, PROVIDER ACCEPTANCE PENDING
 
 **الخطورة:** High.
 
-**الدليل:** `server/_core/oauth.ts:13-47` يقرأ `code` و`state` من query string ويتحقق من وجودهما فقط، ثم يمرر `state` إلى `exchangeCodeForToken`. لا يوجد state store أو nonce مرتبط بطلب بدء login أو تحقق request-bound في الملف.
+**الدليل السابق:** `server/_core/oauth.ts` كان يتحقق من وجود `code/state` فقط. **الإصلاح الحالي:** `/api/oauth/start` يولد nonce server-side في HttpOnly cookie، والـcallback يتحقق من nonce وredirect URI قبل exchange، مع اختبارات callback مزور ومفقود. يبقى اختبار مزود OAuth الفعلي مطلوبًا.
 
 **الأثر:** ضعف مقاومة login CSRF/code injection أو ربط callback بطلب OAuth لم يبدأه المستخدم. قد يخفف المزود الخارجي الخطر إذا كان يفرض state داخليًا، لكن لا يوجد إثبات محلي في المستودع.
 
-**الإصلاح الإلزامي:** إنشاء state عشوائي قصير العمر مرتبط بجلسة/Nonce، التحقق منه قبل exchange، تثبيت redirect URI server-side وعدم قبول redirect URI مفكوك من state دون allow-list.
+**حالة الإغلاق:** أضيف state/nonce قصير العمر server-side، والتحقق قبل exchange، وredirect URI allow-list. المتبقي اختبار مزود OAuth الفعلي في بيئة staging.
 
-### F-003 — تخزين بيانات هوية المستخدم في localStorage
+### F-003 — تخزين بيانات هوية المستخدم في localStorage — CLOSED IN CODE
 
 **الخطورة:** High بالنسبة لمنصة ملفات قانونية حساسة.
 
-**الدليل:** `client/src/_core/hooks/useAuth.ts:44-48` يكتب `meQuery.data` كاملًا إلى `localStorage` في كل حساب، ولا يمسحه logout.
+**الدليل السابق:** `client/src/_core/hooks/useAuth.ts:44-48` كان يكتب `meQuery.data` إلى `localStorage`. **الإصلاح الحالي:** أزيلت الكتابة، وأصبح مصدر الهوية Cookie + `auth.me` فقط؛ يلزم browser regression للتأكد من عدم وجود تخزين آخر في مسارات غير مستخدمة.
 
 **الأثر:** بيانات هوية المكتب والمستخدم تبقى في browser storage وتصبح قابلة للقراءة من أي XSS مستقبلي أو extension أو كود طرف ثالث. هذا يناقض ادعاء cookie-only hardening، حتى لو لم يتم تخزين JWT.
 
-**الإصلاح الإلزامي:** إزالة الكتابة بالكامل، وعدم تخزين أي session/user object في localStorage؛ مراجعة كل browser storage مع سياسة تصنيف بيانات.
+**حالة الإغلاق:** أزيلت الكتابة إلى localStorage من auth hook. المتبقي browser regression ومسح أي بيانات قديمة عند upgrade إن كانت موجودة لدى مستخدمين سابقين.
 
 ### F-004 — صلاحيات العمليات الحساسة أوسع من least privilege
 
@@ -164,7 +164,7 @@ JWT session مدته سنة (`ONE_YEAR_MS`). توجد revocation بـ`jti`، ل�
 
 ### F-022 — runtime drift وbootstrap بديل
 
-يوجد `server/_core/index.ts` وهو مسار build/start الأساسي، ويوجد `server/index.ts` منفصل مع CORS stub credentialed و`/api/test-email` public. اختلاف bootstraps يرفع خطر تشغيل المسار الخطأ أو اختلاف الحماية بين البيئات.
+كان يوجد `server/index.ts` كـbootstrap بديل مع CORS stub credentialed و`/api/test-email` public، وقد حُذف في القسم الأول لأنه غير مستخدم ومصدر runtime drift. المسار الوحيد المعتمد هو `server/_core/index.ts`.
 
 ## 6. Findings الواجهة والمنتج
 

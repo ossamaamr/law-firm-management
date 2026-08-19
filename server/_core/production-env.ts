@@ -18,12 +18,17 @@ export type ProductionEnvValidation = {
   missing: string[];
 };
 
-export function validateProductionEnv(env = ENV): ProductionEnvValidation {
+type ProductionEnv = Omit<typeof ENV, "oAuthPortalUrl" | "publicAppOrigin"> &
+  Partial<Pick<typeof ENV, "oAuthPortalUrl" | "publicAppOrigin">>;
+
+export function validateProductionEnv(env: ProductionEnv = ENV): ProductionEnvValidation {
   const required: Array<[string, string, number]> = [
     ["JWT_SECRET", env.cookieSecret, 32],
     ["VITE_APP_ID", env.appId, 1],
     ["DATABASE_URL", env.databaseUrl, 1],
     ["OAUTH_SERVER_URL", env.oAuthServerUrl, 1],
+    ["VITE_OAUTH_PORTAL_URL", env.oAuthPortalUrl ?? "", 1],
+    ["PUBLIC_APP_ORIGIN", env.publicAppOrigin ?? "", 1],
     ["BUILT_IN_FORGE_API_URL", env.forgeApiUrl, 1],
     ["BUILT_IN_FORGE_API_KEY", env.forgeApiKey, 1],
   ];
@@ -35,7 +40,7 @@ export function validateProductionEnv(env = ENV): ProductionEnvValidation {
   return { valid: missing.length === 0, missing };
 }
 
-export function assertProductionEnv(env = ENV): void {
+export function assertProductionEnv(env: ProductionEnv = ENV): void {
   if (!env.isProduction) return;
 
   const result = validateProductionEnv(env);

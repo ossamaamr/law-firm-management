@@ -582,3 +582,13 @@
 لا يجوز رفع التصنيف إلى `RELEASE CANDIDATE` قبل إغلاق F-001 وF-002 وF-004 وF-005 وF-008 وF-009 وF-010، ثم إجراء اختبار اختراق خارجي. ولا يجوز إعلان `PRODUCTION READY` قبل اختبار Firm A/Firm B على قاعدة حقيقية، scanner معتمد، restore drill، مراجعة proxy/TLS/headers، معالجة High advisories، ومراجعة مستقلة لإدارة بيانات العملاء.
 
 مرجع التقرير التفصيلي: `docs/MERSAD_FINAL_FORENSIC_AUDIT.md`.
+
+## 24. القسم الأول من خطة الإطلاق — محيط المصادقة والطلبات — 2026-08-19
+
+اكتمل تنفيذ القسم الأول داخل الكود مع اختبارات قابلة لإعادة التشغيل. أضيفت طبقة `server/_core/request-security.ts` التي تصدر CSRF double-submit cookie، وتتحقق من `Origin` أو `Referer` مقابل `PUBLIC_APP_ORIGIN`، وتستخدم مقارنة ثابتة الزمن، وتطبق security headers وrate limiting محدودًا على `/api`. رُكبت الطبقة قبل OAuth ورفع الملفات وtRPC في `server/_core/index.ts`.
+
+أعيد بناء OAuth ليستخدم `/api/oauth/start` لتوليد nonce server-side قصير العمر داخل Cookie HttpOnly، وstate مركبًا يثبت redirect URI. يتحقق callback من nonce وredirect URI قبل أي token exchange، ويُمسح state cookie بعد النجاح أو الفشل. أضيفت متطلبات `PUBLIC_APP_ORIGIN` و`VITE_OAUTH_PORTAL_URL` إلى fail-fast production validation، وأزيل إنشاء state من المتصفح.
+
+أزيل تخزين user/session object في `localStorage` من `useAuth`، وحُذف `server/index.ts` لأنه bootstrap بديل غير مستخدم يحتوي surface غير محمي. تمت إضافة اختبارات CSRF/Origin وOAuth state/nonce، ونجحت بوابات القسم: `pnpm check`، و21 اختبارًا مركّزًا، ثم مجموعة المشروع الكاملة **144 اختبارًا ناجحًا و30 متخطيًا**، و`pnpm build`.
+
+لا يغلق هذا القسم جميع بوابات الإنتاج؛ ما زالت F-004 وF-005 وF-008 وF-009 وF-010 وغيرها مفتوحة، كما أن `pnpm audit --audit-level=high` يحتاج معالجة منفصلة. لا يجوز تغيير التصنيف إلى Production Ready بسبب إغلاق محيط الطلبات وحده.

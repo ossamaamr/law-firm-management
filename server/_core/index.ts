@@ -12,6 +12,12 @@ import { brandingUploadRouter } from "../branding-upload.routes";
 import { healthRouter } from "../health.routes";
 import { assertProductionEnv } from "./production-env";
 import { requestIdMiddleware } from "./request-id";
+import {
+  createRateLimitMiddleware,
+  csrfCookieMiddleware,
+  csrfProtectionMiddleware,
+  securityHeadersMiddleware,
+} from "./request-security";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -37,6 +43,10 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
   app.use(requestIdMiddleware);
+  app.use(securityHeadersMiddleware);
+  app.use(csrfCookieMiddleware);
+  app.use(csrfProtectionMiddleware);
+  app.use("/api", createRateLimitMiddleware(120, 60_000));
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));

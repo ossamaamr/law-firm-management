@@ -73,9 +73,9 @@
 
 | ID | Severity | Finding | Evidence | Current status | Release impact |
 |---|---|---|---|---|---|
-| F-001 | Critical/High | غياب CSRF وOrigin validation على Cookie-authenticated mutations، خاصة multipart uploads | `server/_core/index.ts`, `server/_core/cookies.ts`, branding/document routes | OPEN | يمنع الإطلاق |
-| F-002 | High | OAuth callback بلا server-side state/nonce validation | `server/_core/oauth.ts` | OPEN | يمنع الإطلاق |
-| F-003 | High | user/session object يُكتب إلى localStorage ولا يُمسح في logout | `client/src/_core/hooks/useAuth.ts` | OPEN | يمنع الإطلاق |
+| F-001 | Critical/High | غياب CSRF وOrigin validation على Cookie-authenticated mutations، خاصة multipart uploads | `server/_core/index.ts`, `server/_core/request-security.ts`, branding/document routes | VERIFIED — double-submit وOrigin tests ناجحة | يغلق هذا البند، مع بقاء browser/proxy acceptance مطلوبًا |
+| F-002 | High | OAuth callback بلا server-side state/nonce validation | `server/_core/oauth.ts`, `server/_core/sdk.ts` | VERIFIED — start/callback nonce tests ناجحة | يغلق هذا البند، مع بقاء اختبار مزود OAuth الفعلي مطلوبًا |
+| F-003 | High | user/session object يُكتب إلى localStorage ولا يُمسح في logout | `client/src/_core/hooks/useAuth.ts` | VERIFIED — إزالة التخزين من مصدر الحقيقة | يحتاج browser regression للتأكد من عدم وجود storage آخر |
 | F-004 | High | عمليات حساسة تعتمد على tenant membership دون least-privilege role policy | `server/routers.ts`, `server/_core/trpc.ts` | OPEN | يمنع الإطلاق |
 | F-005 | High | activity export/تفاصيل التدقيق متاحة لكل عضو مكتب | `server/activity.routes.ts` | OPEN | يمنع الإطلاق |
 | F-006 | High | `x-forwarded-for` يُستخدم كدليل IP دون trusted-proxy contract | routers/routes متعددة | OPEN | يضعف الدليل الجنائي |
@@ -85,4 +85,4 @@
 | F-010 | High | ledger لا يملك FKs مالية كاملة ولا تسوية transaction حقيقية | `drizzle/schema.ts`, ledger code | OPEN | يمنع financial production sign-off |
 | F-011 | Medium/High | سياسات activity/notification لا تعكس حساسية البيانات بشكل موحد | routes/services | OPEN | يحتاج policy review |
 
-> **قاعدة جديدة:** لا يجوز رفع readiness بسبب نسبة 26/28 ما دامت Findings F-001 إلى F-010 مفتوحة. التقرير المرجعي الكامل لهذه البنود هو `docs/MERSAD_FINAL_FORENSIC_AUDIT.md`، وقرار الإطلاق الحالي `NOT READY`.
+> **تحديث القسم الأول:** أُغلقت F-001 وF-002 وF-003 برمجيًا واختباريًا، لكن لا يجوز رفع readiness ما دامت F-004 وF-005 وF-008 وF-009 وF-010 مفتوحة. التقرير المرجعي الكامل هو `docs/MERSAD_FINAL_FORENSIC_AUDIT.md`، وقرار الإطلاق الحالي `NOT READY`. النسبة التاريخية 26/28 ليست النسبة الحالية بعد إضافة Findings الجنائية.

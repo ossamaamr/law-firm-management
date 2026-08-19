@@ -10,6 +10,14 @@ import "./index.css";
 
 const queryClient = new QueryClient();
 
+const getCsrfToken = (): string | undefined => {
+  const entry = document.cookie
+    .split(";")
+    .map(value => value.trim())
+    .find(value => value.startsWith("mersad_csrf="));
+  return entry?.slice("mersad_csrf=".length);
+};
+
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
@@ -46,6 +54,10 @@ const trpcClient = trpc.createClient({
         return globalThis.fetch(input, {
           ...(init ?? {}),
           credentials: "include",
+          headers: {
+            ...(init?.headers ?? {}),
+            "x-csrf-token": getCsrfToken() ?? "",
+          },
         });
       },
     }),
