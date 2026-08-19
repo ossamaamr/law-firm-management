@@ -187,12 +187,12 @@ export class AnalyticsService {
   trackEvent(
     eventName: string,
     userId: string,
-    eventData?: Record<string, any>
+    eventData?: Record<string, unknown>
   ): void {
     try {
+      void userId;
       logger.info(`Analytics event: ${eventName}`, {
-        userId,
-        data: eventData,
+        dataKeys: eventData ? Object.keys(eventData) : [],
       });
       // Send to analytics service (Google Analytics, Mixpanel, etc.)
     } catch (error) {
@@ -207,7 +207,7 @@ export class AnalyticsService {
   trackUserAction(
     userId: string,
     action: string,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): void {
     this.trackEvent(`user_${action}`, userId, details);
   }
@@ -226,7 +226,7 @@ export class PaymentService {
     amount: number,
     currency: string,
     paymentMethod: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<{ success: boolean; transactionId?: string; error?: string }> {
     void amount;
     void currency;
@@ -251,9 +251,8 @@ export class DocumentService {
    */
   async convertToPDF(filePath: string): Promise<Buffer | null> {
     try {
-      // Using LibreOffice or similar service
-      logger.info(`Converting document to PDF: ${filePath}`);
-      // Return PDF buffer
+      void filePath;
+      logger.error("Document PDF conversion is unavailable because no approved provider is configured");
       return null;
     } catch (error) {
       logger.error("Error converting document to PDF:", error);
@@ -267,8 +266,8 @@ export class DocumentService {
    */
   async extractTextFromDocument(filePath: string): Promise<string | null> {
     try {
-      // Using Tesseract or Google Vision API
-      logger.info(`Extracting text from document: ${filePath}`);
+      void filePath;
+      logger.error("Document OCR is unavailable because no approved provider is configured");
       return null;
     } catch (error) {
       logger.error("Error extracting text from document:", error);

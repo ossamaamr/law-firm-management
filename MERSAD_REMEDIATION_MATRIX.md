@@ -86,3 +86,23 @@
 | F-011 | Medium/High | سياسات activity/notification لا تعكس حساسية البيانات بشكل موحد | routes/services | OPEN | يحتاج policy review |
 
 > **تحديث أمني لاحق:** أُغلقت advisories npm الستة ذات التصنيف High عبر ترقية Express وstreamdown وإضافة overrides مثبتة في `pnpm-workspace.yaml` لـRollup وpath-to-regexp وlodash/lodash-es وform-data وnanoid. أصبحت `pnpm audit --audit-level=high` ناجحة مع 0 High، وبقيت 1 Low و3 Moderate. لا يغير ذلك حالة F-009 أو قرار الإطلاق؛ فما زالت MySQL والتكاملات التشغيلية واختبارات الاستعادة وoutbox worker متعددة النسخ مطلوبة.
+
+
+## Findings إضافية — Non-Database Forensic Pass — 2026-08-19
+
+هذه البنود أضيفت بعد التدقيق غير المعتمد على قاعدة البيانات، ولا تُدمج بأثر رجعي في denominator التاريخي `26/28 = 92.86%`.
+
+| ID | Severity | Category | Finding | Evidence | Current status |
+|---|---|---|---|---|---|
+| F-027 | High | PUBLIC INPUT / EMAIL | مسارات contact كانت تضع مدخلات المستخدم داخل HTML بريد دون escaping، وتعيد نجاحًا عند فشل مزود البريد | `server/routes/contact.routes.ts` | VERIFIED — bounded validation، HTML escaping، و502 fail-closed، مع 4 اختبارات HTTP |
+| F-028 | High | PRIVACY / CONFIG | contact config احتوى بيانات شخصية وهوية CasEngine قديمة ودالة fetch ميتة داخل config | `server/config/contact.config.ts` | VERIFIED — إعدادات البيئة العامة، إزالة البيانات الشخصية والدالة الميتة، وMERSAD branding |
+| F-029 | Medium | PRODUCT INTEGRITY | صفحات غير موصولة احتوت mock requests وfake approval وmock activity | `client/src/pages/AdminApprovalPage.tsx`, `ActivityTimelinePage.tsx`, `CasesPage.tsx` | VERIFIED — حذف الملفات بعد إثبات عدم وجود imports/routes |
+| F-030 | Medium | EXTERNAL INTEGRATIONS / PII | adapters قديمة احتوت unreachable TODO implementations وتسجيل file paths وanalytics payloads | `server/email.service.ts`, `server/external-apis.service.ts` | VERIFIED — fail-closed contracts، إزالة unreachable code، وتسجيل مفاتيح payload فقط |
+
+### أثر الجولة
+
+نجحت اختبارات contact الجديدة، وأصبح مجموع الاختبارات المحلي **158 ناجحًا و30 متخطيًا** بعد إضافة الاختبارات الأربع. نجح `pnpm check`، بينما يتطلب `pnpm install --frozen-lockfile` استعادة dependencies قبل إعادة build النهائي. لا تزال القيود المعتمدة على MySQL، worker، scanner، restore drill، والاختبار الخارجي مفتوحة.
+
+لا يُسمح بتغيير قرار الإطلاق من `BETA READY — NOT PRODUCTION READY` استنادًا إلى هذه الإصلاحات وحدها.
+
+| F-031 | High | CLIENT CONFIG / SECRET EXPOSURE | ملف `client/src/lib/external-apis.ts` غير مستخدم وكان يضع أسرارًا ومفاتيح مزودي خدمة ضمن `VITE_*` وبيانات اتصال قديمة في كود المتصفح | إثبات عدم وجود imports، ثم `git rm` للملف | VERIFIED — إزالة سطح التعرض غير المستخدم؛ تكاملات الخادم تبقى server-side فقط |

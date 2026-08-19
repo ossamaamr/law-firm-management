@@ -636,3 +636,19 @@
 أُغلقت advisories npm الستة ذات التصنيف High بعد تحديد مساراتها وتحديث الاعتماديات دون استخدام استثناءات audit. تمت ترقية `express` إلى `5.2.1` و`streamdown` إلى `2.5.0`، وثُبتت overrides في `pnpm-workspace.yaml` لـ`rollup` إلى `4.59.0` أو أحدث، و`path-to-regexp` إلى `0.1.13`، و`lodash` إلى `4.18.0` أو أحدث، و`lodash-es` إلى `4.18.1`، و`form-data` إلى `4.0.6`، و`nanoid` إلى `5.1.16`.
 
 بعد تثبيت lockfile وتشغيل البوابات، أصبحت `pnpm audit --audit-level=high` ناجحة بنتيجة **0 High**، مع بقاء **1 Low و3 Moderate** موثقة لدورة معالجة لاحقة. نجحت كذلك `pnpm check` و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا** و`pnpm build` و`git diff --check`. لا تُعد هذه المعالجة تصريحًا بالإطلاق؛ فالقيود المتعلقة بـMySQL والتكاملات المتخطية وoutbox worker والاختبار المستقل ما زالت قائمة.
+
+
+# 24. ملحق Non-Database Forensic Hardening — 2026-08-19
+
+أُجريت جولة تدقيق مستقلة على طبقة التطبيق والواجهة والإعدادات دون استخدام قاعدة بيانات. عولجت أربع فئات إضافية قابلة للإصلاح داخل المستودع:
+
+| البند | التنفيذ | الإثبات |
+|---|---|---|
+| Public contact input | validation بحدود، NFC، منع control characters، HTML escaping، و502 fail-closed عند فشل البريد | `server/routes/contact.routes.ts`, `server/contact.routes.test.ts` |
+| Contact privacy/config | إزالة بيانات الاتصال الشخصية وهوية CasEngine والدالة الخادمية الميتة، وربط القيم العامة بالبيئة | `server/config/contact.config.ts`, `.env.example` |
+| Dead demo surfaces | حذف AdminApproval/ActivityTimeline/CasesPage بعد إثبات عدم وجود imports أو routes | `client/src/pages/*` |
+| External adapters | إزالة unreachable TODO code، تضييق `any` إلى `unknown`، ومنع تسجيل مسارات الملفات وpayloads الحساسة | `server/email.service.ts`, `server/external-apis.service.ts` |
+
+نتيجة البوابات المركزة: `pnpm check` ناجح، والاختبارات **158 ناجحًا و30 متخطيًا** بعد إضافة أربع اختبارات contact. لا يُعد هذا إثباتًا لسلامة قاعدة البيانات أو worker أو restore drill أو المزودات الخارجية.
+
+> **قاعدة إطلاق ثابتة:** تبقى حالة MERSAD `BETA READY — NOT PRODUCTION READY` حتى تطبيق migrations على MySQL اختبارية/معتمدة، تشغيل الاختبارات المتخطية، إثبات outbox worker متعدد النسخ، restore drill، scanner provider، ومراجعة أمنية خارجية.

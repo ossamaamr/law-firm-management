@@ -241,3 +241,29 @@ JWT session مدته سنة (`ONE_YEAR_MS`). توجد revocation بـ`jti`، ل�
 [17]: ../drizzle/0014_tenant_integrity_fks.sql "Tenant integrity FK migration"
 [18]: ../server/role-policy.test.ts "Least-privilege role tests"
 [19]: ../client/src/App.tsx "Reachable client routes"
+
+
+## 13. Non-Database Forensic Pass — 2026-08-19
+
+أُجريت جولة مستقلة على طبقة التطبيق والواجهة والإعدادات دون الاعتماد على قاعدة بيانات. ركزت الجولة على public input، المسارات الوهمية، تسريب بيانات الاتصال، والعقود الخارجية التي قد تعلن نجاحًا غير حقيقي.
+
+### F-027 — Public contact input وemail HTML
+
+كانت مسارات `/api/contact/send` و`/api/contact/newsletter` و`/api/contact/bug-report` تستخدم مدخلات المستخدم داخل HTML البريد دون escaping، كما كانت newsletter وbug-report تعيدان نجاحًا حتى عند رجوع مزود البريد بـ`false`. عولج ذلك بحدود أطوال، تحقق email، منع control characters، NFC normalization، HTML escaping، وحالة `502` fail-closed عند فشل التسليم. أضيفت `server/contact.routes.test.ts` بأربع حالات HTTP تشمل XSS وdelivery failure.
+
+### F-028 — بيانات شخصية وهوية قديمة في contact config
+
+كان `server/config/contact.config.ts` يحتوي عنوان بريد شخصيًا وبيانات اتصال وهوية `CasEngine` ثابتة، إضافة إلى دالة `sendContactRequest` تستخدم `fetch` داخل ملف إعدادات خادمي ولم تكن مستخدمة. أزيلت البيانات الشخصية والهوية القديمة، وأصبحت القيم العامة تأتي من متغيرات بيئية اختيارية، وأزيلت الدالة الميتة. أضيف عقد نظيف في `.env.example` دون أسرار.
+
+### F-029 — dead demo pages
+
+ثبت البحث عدم وجود imports أو routes للصفحات `AdminApprovalPage.tsx` و`ActivityTimelinePage.tsx` و`CasesPage.tsx`. كانت تحتوي mock requests أو fake approval أو mock activity. حُذفت بعد إثبات أنها غير موصولة بالمسار النشط.
+
+### F-030 — external adapters وPII logging
+
+أزيل من `email.service.ts` كود HTML غير قابل للوصول وTODO implementations التي كانت بعد `return false`. بقيت الوظائف fail-closed دون ادعاء إرسال. شُدد `external-apis.service.ts` باستبدال `any` بـ`unknown`، ومنع تسجيل file paths وanalytics user IDs وpayload values؛ تسجل Analytics مفاتيح البيانات فقط، وتبقى PDF/OCR/SMS/payment providers محظورة عند غياب مزود معتمد.
+
+نتيجة الجولة: **158 اختبارًا ناجحًا و30 متخطيًا** بعد إضافة اختبارات contact، ونجح `pnpm check`. لا تزال اختبارات MySQL، migrations الفعلية، worker متعدد النسخ، restore drill، scanner/OCR ومراجعة الاستضافة الخارجية شروطًا مفتوحة. يبقى القرار: **BETA READY — NOT PRODUCTION READY**.
+
+### F-031 — إزالة سطح تعرض client-side غير مستخدم
+أثبتت المراجعة عدم وجود imports لملف `client/src/lib/external-apis.ts`. كان الملف يتضمن بيانات اتصال شخصية وهوية CasEngine القديمة، إضافة إلى حقول `VITE_*` لمفاتيح سرية (مثل مفاتيح التخزين، البريد، الرسائل، الذكاء الاصطناعي، والتوقيع الإلكتروني) كان يمكن تضمينها في حزمة المتصفح. أُزيل الملف بالكامل من المستودع، وأُعيد تشغيل typecheck والاختبارات والبناء بنجاح بعد الإزالة.
