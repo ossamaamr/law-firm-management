@@ -9,6 +9,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { documentUploadRouter } from "../document-upload.routes";
 import { brandingUploadRouter } from "../branding-upload.routes";
+import { healthRouter } from "../health.routes";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -40,6 +41,7 @@ async function startServer() {
   // Multipart document uploads use the same session cookie as tRPC.
   app.use("/api/documents", documentUploadRouter);
   app.use("/api/branding", brandingUploadRouter);
+  app.use("/health", healthRouter);
   // tRPC API
   app.use(
     "/api/trpc",
