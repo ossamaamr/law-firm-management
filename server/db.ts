@@ -918,6 +918,30 @@ export async function appendLedgerEntry(input: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  const [creator] = await db.select({ id: users.id }).from(users)
+    .where(and(eq(users.id, input.createdById), eq(users.lawFirmId, input.lawFirmId)))
+    .limit(1);
+  if (!creator) throw new Error("Ledger creator is not assigned to the law firm");
+
+  if (input.matterId !== undefined && input.matterId !== null) {
+    const [matter] = await db.select({ id: matters.id }).from(matters)
+      .where(and(eq(matters.id, input.matterId), eq(matters.lawFirmId, input.lawFirmId)))
+      .limit(1);
+    if (!matter) throw new Error("Ledger matter does not belong to the law firm");
+  }
+
+  if (input.invoiceId !== undefined && input.invoiceId !== null) {
+    const invoice = await getInvoiceInLawFirm(input.invoiceId, input.lawFirmId);
+    if (!invoice) throw new Error("Ledger invoice does not belong to the law firm");
+  }
+
+  if (input.duePaymentId !== undefined && input.duePaymentId !== null) {
+    const [duePayment] = await db.select({ id: duePayments.id }).from(duePayments)
+      .where(and(eq(duePayments.id, input.duePaymentId), eq(duePayments.lawFirmId, input.lawFirmId)))
+      .limit(1);
+    if (!duePayment) throw new Error("Ledger due payment does not belong to the law firm");
+  }
+
   const existing = await db.select().from(ledgerEntries)
     .where(eq(ledgerEntries.idempotencyKey, input.idempotencyKey))
     .limit(1);

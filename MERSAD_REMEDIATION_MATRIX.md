@@ -79,10 +79,10 @@
 | F-004 | High | عمليات حساسة تعتمد على tenant membership دون least-privilege role policy | `server/routers.ts`, `server/_core/trpc.ts` | VERIFIED — caseTeam/compliance/finance/admin role gates واختبارات الرفض ناجحة | يلزم استكمال مراجعة كل domain router |
 | F-005 | High | activity export/تفاصيل التدقيق متاحة لكل عضو مكتب | `server/activity.routes.ts` | VERIFIED — التفاصيل والتصدير admin/manager، وrecent محدود لفريق القضايا | يلزم مراجعة CSV والحدود في القسم الثالث |
 | F-006 | High | `x-forwarded-for` يُستخدم كدليل IP دون trusted-proxy contract | routers/routes متعددة | OPEN | يضعف الدليل الجنائي |
-| F-007 | High | CSV export معرض لـformula injection وescaping غير RFC-compliant | `server/activity.service.ts` | OPEN | يمنع export الآمن |
-| F-008 | High | audit insert غير ذري مع العملية وفشله لا يفشل mutation | `server/activity.service.ts` | OPEN | يمنع chain of custody |
+| F-007 | High | CSV export معرض لـformula injection وescaping غير RFC-compliant | `server/activity.service.ts` | VERIFIED — formula neutralization وRFC quoting وCRLF tests ناجحة | يحتاج مراجعة data minimization لاحقًا |
+| F-008 | High | audit insert غير ذري مع العملية وفشله لا يفشل mutation | `server/activity.service.ts` | PARTIAL — أصبح persistence fail-closed ولا يُسقط الفشل بصمت؛ coupling transaction/outbox ما زال مفتوحًا | يمنع release sign-off حتى إكمال الذرية |
 | F-009 | High | MySQL migrations/preflight/integration غير مثبتة؛ 30 اختبارًا متخطٍ | `drizzle.config.ts`, test output | OPEN/BLOCKED ENV | يمنع production sign-off |
-| F-010 | High | ledger لا يملك FKs مالية كاملة ولا تسوية transaction حقيقية | `drizzle/schema.ts`, ledger code | OPEN | يمنع financial production sign-off |
+| F-010 | High | ledger لا يملك FKs مالية كاملة ولا تسوية transaction حقيقية | `drizzle/schema.ts`, ledger code | PARTIAL — أضيفت FKs مالية وtenant relation validation وidempotency guards؛ transaction reconciliation ما زالت مفتوحة | يمنع financial production sign-off |
 | F-011 | Medium/High | سياسات activity/notification لا تعكس حساسية البيانات بشكل موحد | routes/services | OPEN | يحتاج policy review |
 
-> **تحديث القسم الثاني:** أُغلقت F-004 وF-005 برمجيًا واختباريًا ضمن نطاق routers الحالي، وأضيفت migration `0014_tenant_integrity_fks.sql` للمفاتيح المركبة وFKs الأساسية. لا تزال F-008 وF-009 وF-010 وF-012 وغيرها مفتوحة، ولا يزال قرار الإطلاق `NOT READY`. النسبة التاريخية 26/28 ليست النسبة الحالية بعد إضافة Findings الجنائية.
+> **تحديث القسم الثالث:** أُغلق F-007 برمجيًا واختباريًا، وأصبح F-008 وF-010 في حالة PARTIAL فقط لأن transactional coupling وreconciliation لم يكتملَا. أضيفت migration `0015_financial_audit_fks.sql`، ولا يزال F-009 وبقية بوابات التشغيل مفتوحًا، ولا يزال قرار الإطلاق `NOT READY`. النسبة التاريخية 26/28 ليست النسبة الحالية بعد إضافة Findings الجنائية.

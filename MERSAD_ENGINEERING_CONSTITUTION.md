@@ -600,3 +600,13 @@
 تم تقوية العزل على مستوى الكتابة في `server/db.ts`: أصبحت `updateCase` و`softDeleteCase` تتطلبان `lawFirmId` داخل شرط SQL نفسه، وتتحقق عملية الحذف من `affectedRows`. كما أضيفت `0014_tenant_integrity_fks.sql` ومقابلها snapshot إلى migrations، وتشمل مفاتيح مركبة `id + lawFirmId` وFKs مركبة بين clients/matters/cases/projects، إضافة إلى FKs للقضايا والجلسات والمهام والمستندات والمستخدمين. تم إصلاح تعارض الترقيم مع `0013_immutable_ledger` وإثبات `drizzle-kit check` بنجاح باستخدام إعداد اتصال مؤقت غير محفوظ.
 
 أضيفت `server/role-policy.test.ts`، ووُسعت fixture اختبارات العزل إلى lawyer حتى تميز بين authorization وFirm A/Firm B isolation. نجحت بوابات القسم: `pnpm check`، و15 اختبارًا مركّزًا، و`drizzle-kit check`. لم تُطبق migration على MySQL حقيقية بعد، لذلك يبقى F-009 وقرار الإطلاق `NOT READY`.
+
+## 26. القسم الثالث من خطة الإطلاق — سلامة المستندات والمالية والتدقيق — 2026-08-19
+
+أُغلق خطر CSV injection في `server/activity.service.ts` بإضافة `escapeCsvCell` التي تعزل قيم Excel الخطرة التي تبدأ بـ`=`, `+`, `-`, أو `@`، وتهرب علامات الاقتباس وفق RFC، وتستخدم CRLF. أضيفت اختبارات عدائية مستقلة لا تتطلب قاعدة بيانات.
+
+أصبح `logActivity` fail-closed: لا يعيد نجاحًا عند غياب قاعدة البيانات أو فشل الإدراج، ولا يُسقط فشل حفظ سجل التدقيق بصمت. هذا يحسن chain of custody، لكنه لا يُعلن transactional coupling؛ إذ ما زال ربط العملية وسجل التدقيق داخل transaction أو outbox دائم مطلوبًا قبل الإطلاق.
+
+أضيفت validation مالية داخل `appendLedgerEntry`: يجب أن يكون المنشئ ضمن المكتب، وأن تنتمي matter وinvoice وduePayment إلى `lawFirmId` نفسه قبل الإدراج. كما أضيفت `0015_financial_audit_fks.sql` وsnapshot متوافق، وتتضمن FKs للفواتير والمطالبات والledger والمستخدمين والمكتب وسجل التدقيق والنشاط. نجحت البوابات الكاملة: `pnpm check`، و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا**، و`pnpm build`، و`git diff --check`.
+
+لا يُغلق هذا القسم F-008 أو F-010 بالكامل؛ فـtransactional outbox، وaudit coupling، وfinancial reconciliation ما زالت مطلوبة، كما لم تُطبق migration على MySQL حقيقية. لذلك يبقى F-009 مفتوحًا وتصنيف المنصة `NOT READY`.

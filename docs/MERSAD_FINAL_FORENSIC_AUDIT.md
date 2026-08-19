@@ -19,7 +19,7 @@
 | الفحص | النتيجة | التفسير |
 |---|---:|---|
 | `pnpm check` | ناجح | لا يثبت أمن runtime أو صحة قاعدة البيانات |
-| `pnpm test` | 148 ناجحًا، 30 متخطيًا | الاختبارات المتخطية مرتبطة بغياب `DATABASE_URL`؛ لا تثبت تكامل MySQL |
+| `pnpm test` | 154 ناجحًا، 30 متخطيًا | الاختبارات المتخطية مرتبطة بغياب `DATABASE_URL`؛ لا تثبت تكامل MySQL |
 | `pnpm build` | ناجح | لا يثبت حماية endpoints أو الإعدادات الإنتاجية |
 | `git diff --check` | ناجح | فحص تنسيق whitespace فقط |
 | `pnpm audit --audit-level=high` | فاشل | 45 advisory:‏ 6 High و31 Moderate و8 Low |
@@ -194,13 +194,13 @@ JWT session مدته سنة (`ONE_YEAR_MS`). توجد revocation بـ`jti`، ل�
 
 أضيف `roleProcedure` مركزي، وفُصلت صلاحيات فريق القضايا عن compliance والمالية والإدارة. أصبحت القضايا والعملاء والمستندات محمية بأدوار admin/manager/lawyer، وKYC/conflict checks محمية إداريًا، وActivity التفصيلي والتصدير محميًا لـadmin/manager. كما أصبحت `updateCase` و`softDeleteCase` tenant-qualified داخل SQL، مع affectedRows verification.
 
-أضيفت migration `drizzle/0014_tenant_integrity_fks.sql` وsnapshot متوافق، تتضمن composite tenant keys وFKs للقضايا والمشاريع والجلسات والمهام والمستندات. نجح `pnpm check` و15 اختبارًا مركّزًا و`drizzle-kit check` بإعداد اتصال مؤقت غير محفوظ. لم تُطبق migration على MySQL حقيقية، ولذلك لا تُعد F-009 مغلقة.
+أضيفت migration `drizzle/0014_tenant_integrity_fks.sql` وsnapshot متوافق، تتضمن composite tenant keys وFKs للقضايا والمشاريع والجلسات والمهام والمستندات. كما أضيفت `drizzle/0015_financial_audit_fks.sql` لـFKs المالية والتدقيقية. نجح `pnpm check` و`drizzle-kit check` بإعداد اتصال مؤقت غير محفوظ، ونجحت اختبارات CSV وledger والعزل. لم تُطبق migrations على MySQL حقيقية، ولذلك لا تُعد F-009 مغلقة.
 
 ## 9. قرار الإطلاق
 
 التصنيف النهائي: **NOT READY — لا تطلق المنصة على بيانات محامين أو عملاء حقيقية.**
 
-السبب ليس نقص ميزة تجميلية، بل وجود blockers متبقية: audit غير durable، FKs وتسوية مالية غير مكتملة، dependency High advisories، وغياب تحقق MySQL/MariaDB الفعلي. أُغلقت F-001 وF-002 وF-003 وF-004 وF-005 في الكود ضمن نطاقها الحالي، لكن لا يصبح الإصدار جاهزًا قبل إغلاق F-008 وF-009 وF-010 وبقية domain findings، ثم إجراء اختبار اختراق خارجي.
+السبب ليس نقص ميزة تجميلية، بل وجود blockers متبقية: audit غير durable، FKs وتسوية مالية غير مكتملة، dependency High advisories، وغياب تحقق MySQL/MariaDB الفعلي. أُغلقت F-001 وF-002 وF-003 وF-004 وF-005 وF-007 في الكود ضمن نطاقها الحالي. أصبح F-008 وF-010 جزئيين فقط: audit persistence أصبح fail-closed، وأضيفت FKs وrelation validation للledger، لكن transactional coupling وfinancial reconciliation لم يكتملَا. لا يصبح الإصدار جاهزًا قبل إغلاق F-008 وF-009 وF-010 وبقية domain findings، ثم إجراء اختبار اختراق خارجي.
 
 ## 10. بوابة إطلاق إلزامية
 

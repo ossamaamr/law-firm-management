@@ -32,8 +32,7 @@ export interface ActivityLogInput {
 export async function logActivity(input: ActivityLogInput): Promise<void> {
   const db = await getDb();
   if (!db) {
-    console.warn("[Activity Log] Database not available");
-    return;
+    throw new Error("Activity log persistence is unavailable");
   }
 
   try {
@@ -49,12 +48,9 @@ export async function logActivity(input: ActivityLogInput): Promise<void> {
       createdAt: new Date(),
     });
 
-    console.log(
-      `[Activity Log] Logged: ${input.actionType} ${input.entityType} ${input.entityName}`
-    );
   } catch (error) {
-    console.error("[Activity Log] Error logging activity:", error);
-    // Don't throw - activity logging should not break the main operation
+    console.error("[Activity Log] Persistence failed", error instanceof Error ? error.message : "unknown error");
+    throw new Error("Activity log persistence failed", { cause: error });
   }
 }
 
@@ -192,6 +188,12 @@ export async function getActivityStats(firmId: number): Promise<{
  * Export activities as CSV
  * تصدير النشاطات كـ CSV
  */
+export function escapeCsvCell(value: unknown): string {
+  const text = String(value ?? "");
+  const safeText = /^[\t ]*[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
+}
+
 export async function exportActivitiesAsCSV(
   firmId: number,
   options?: {
@@ -229,9 +231,9 @@ export async function exportActivitiesAsCSV(
 
   // Combine headers and rows
   const csv = [
-    headers.join(","),
-    ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-  ].join("\n");
+    headers.map(escapeCsvCell).join(","),
+    ...rows.map((row) => row.map(escapeCsvCell).join(",")),
+  ].join("\r\n");
 
   return csv;
 }

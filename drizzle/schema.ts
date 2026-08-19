@@ -421,7 +421,11 @@ export const duePayments = mysqlTable("duePayments", {
   paidDate: timestamp("paidDate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "duePayments_matterId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "duePayments_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  approvedByFk: foreignKey({ columns: [table.approvedById], foreignColumns: [users.id], name: "duePayments_approvedById_fk" }).onDelete("set null").onUpdate("cascade"),
+}));
 
 export type DuePayment = typeof duePayments.$inferSelect;
 export type InsertDuePayment = typeof duePayments.$inferInsert;
@@ -446,7 +450,12 @@ export const invoices = mysqlTable("invoices", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "invoices_matterId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  clientFk: foreignKey({ columns: [table.clientId], foreignColumns: [clients.id], name: "invoices_clientId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "invoices_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  duePaymentFk: foreignKey({ columns: [table.duePaymentId], foreignColumns: [duePayments.id], name: "invoices_duePaymentId_fk" }).onDelete("set null").onUpdate("cascade"),
+}));
 
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
@@ -476,6 +485,11 @@ export const ledgerEntries = mysqlTable("ledgerEntries", {
   lawFirmCreatedAtIdx: index("ledger_lawFirm_createdAt_idx").on(table.lawFirmId, table.createdAt),
   lawFirmInvoiceIdx: index("ledger_lawFirm_invoice_idx").on(table.lawFirmId, table.invoiceId),
   lawFirmMatterIdx: index("ledger_lawFirm_matter_idx").on(table.lawFirmId, table.matterId),
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "ledgerEntries_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "ledgerEntries_matterId_fk" }).onDelete("set null").onUpdate("cascade"),
+  invoiceFk: foreignKey({ columns: [table.invoiceId], foreignColumns: [invoices.id], name: "ledgerEntries_invoiceId_fk" }).onDelete("set null").onUpdate("cascade"),
+  duePaymentFk: foreignKey({ columns: [table.duePaymentId], foreignColumns: [duePayments.id], name: "ledgerEntries_duePaymentId_fk" }).onDelete("set null").onUpdate("cascade"),
+  createdByFk: foreignKey({ columns: [table.createdById], foreignColumns: [users.id], name: "ledgerEntries_createdById_fk" }).onDelete("restrict").onUpdate("cascade"),
 }));
 
 export type LedgerEntry = typeof ledgerEntries.$inferSelect;
@@ -519,7 +533,13 @@ export const auditLogs = mysqlTable("auditLogs", {
   changes: json("changes"),
   ipAddress: varchar("ipAddress", { length: 45 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id], name: "auditLogs_userId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "auditLogs_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "auditLogs_matterId_fk" }).onDelete("set null").onUpdate("cascade"),
+  caseFk: foreignKey({ columns: [table.caseId], foreignColumns: [cases.id], name: "auditLogs_caseId_fk" }).onDelete("set null").onUpdate("cascade"),
+  projectFk: foreignKey({ columns: [table.projectId], foreignColumns: [projects.id], name: "auditLogs_projectId_fk" }).onDelete("set null").onUpdate("cascade"),
+}));
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
@@ -540,6 +560,8 @@ export const activityLogs = mysqlTable("activityLogs", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => ({
   firmCreatedAtIdx: index("activityLogs_firm_createdAt_idx").on(table.firmId, table.createdAt),
+  firmFk: foreignKey({ columns: [table.firmId], foreignColumns: [lawFirms.id], name: "activityLogs_firmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id], name: "activityLogs_userId_fk" }).onDelete("restrict").onUpdate("cascade"),
 }));
 
 export type ActivityLog = typeof activityLogs.$inferSelect;
