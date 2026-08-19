@@ -10,7 +10,7 @@
 
 ## 1. الخلاصة التنفيذية
 
-المستودع في حالة تطوير متقدمة، وفيه نقاط قوية حقيقية: جلسة Cookie موقعة مع `jti` revocation، عزل Tenant في عدد من المسارات، scanner boundary fail-closed، signed URLs، ledger append-only، approval transaction، فهارس وFK جزئية، واختبارات server-side جيدة نسبيًا. ومع ذلك توجد فجوات تمنع الإطلاق: لا توجد حماية CSRF/Origin على cookie-authenticated multipart mutations، callback OAuth لا يثبت state/nonce محليًا، صلاحيات العمليات الحساسة أوسع من مبدأ least privilege، Activity export مكشوف لكل عضو مكتب، قاعدة البيانات الحقيقية لم تُشغّل عليها migrations أو orphan preflight، سجلات التدقيق غير ذرية ويمكن فقدها، وdependency audit يظل يفشل بستة High advisories.
+المستودع في حالة تطوير متقدمة، وفيه نقاط قوية حقيقية: جلسة Cookie موقعة مع `jti` revocation، عزل Tenant في عدد من المسارات، scanner boundary fail-closed، signed URLs، ledger append-only، approval transaction، فهارس وFK جزئية، واختبارات server-side جيدة نسبيًا. أُغلق في القسمين الأول والثاني محيط CSRF/Origin، OAuth state/nonce، localStorage user cache، role gates الأساسية، وتقييد Activity export، وأضيفت migration 0014 لـtenant integrity. ومع ذلك توجد فجوات تمنع الإطلاق: قاعدة البيانات الحقيقية لم تُشغّل عليها migrations أو orphan preflight، سجلات التدقيق غير ذرية ويمكن فقدها، ledger المالي يحتاج FKs وتسوية كاملة، وdependency audit يظل يفشل بستة High advisories.
 
 النتيجة ليست أن Tenant isolation غير موجود؛ بل إن **عزل المكتب موجود في طبقات عديدة لكنه ليس بديلًا عن CSRF أو role authorization أو integrity constraints الكاملة**. لذلك فإن وجود `lawFirmId` في الاستعلامات لا يكفي لحماية بيانات المحاماة.
 
@@ -19,7 +19,7 @@
 | الفحص | النتيجة | التفسير |
 |---|---:|---|
 | `pnpm check` | ناجح | لا يثبت أمن runtime أو صحة قاعدة البيانات |
-| `pnpm test` | 144 ناجحًا، 30 متخطيًا | الاختبارات المتخطية مرتبطة بغياب `DATABASE_URL`؛ لا تثبت تكامل MySQL |
+| `pnpm test` | 148 ناجحًا، 30 متخطيًا | الاختبارات المتخطية مرتبطة بغياب `DATABASE_URL`؛ لا تثبت تكامل MySQL |
 | `pnpm build` | ناجح | لا يثبت حماية endpoints أو الإعدادات الإنتاجية |
 | `git diff --check` | ناجح | فحص تنسيق whitespace فقط |
 | `pnpm audit --audit-level=high` | فاشل | 45 advisory:‏ 6 High و31 Moderate و8 Low |
@@ -190,13 +190,19 @@ JWT session مدته سنة (`ONE_YEAR_MS`). توجد revocation بـ`jti`، ل�
 
 وجود provider URL أو API key في environment لا يثبت contract، TLS policy، timeout/retry/idempotency، redaction، أو data processing agreement. لا يجب اعتبار هذه المسارات إنتاجية قبل مراجعة المزود.
 
-## 8. قرار الإطلاق
+## 8. نتيجة القسم الثاني
+
+أضيف `roleProcedure` مركزي، وفُصلت صلاحيات فريق القضايا عن compliance والمالية والإدارة. أصبحت القضايا والعملاء والمستندات محمية بأدوار admin/manager/lawyer، وKYC/conflict checks محمية إداريًا، وActivity التفصيلي والتصدير محميًا لـadmin/manager. كما أصبحت `updateCase` و`softDeleteCase` tenant-qualified داخل SQL، مع affectedRows verification.
+
+أضيفت migration `drizzle/0014_tenant_integrity_fks.sql` وsnapshot متوافق، تتضمن composite tenant keys وFKs للقضايا والمشاريع والجلسات والمهام والمستندات. نجح `pnpm check` و15 اختبارًا مركّزًا و`drizzle-kit check` بإعداد اتصال مؤقت غير محفوظ. لم تُطبق migration على MySQL حقيقية، ولذلك لا تُعد F-009 مغلقة.
+
+## 9. قرار الإطلاق
 
 التصنيف النهائي: **NOT READY — لا تطلق المنصة على بيانات محامين أو عملاء حقيقية.**
 
-السبب ليس نقص ميزة تجميلية، بل وجود مجموعة blockers أمنية مباشرة: CSRF على مسارات Cookie-authenticated، OAuth state/nonce غير مثبت، least privilege غير مكتمل، audit غير durable، dependency High advisories، وغياب تحقق MySQL/MariaDB الفعلي. حتى إغلاق كل البنود الخارجية، لا يصبح الإصدار جاهزًا قبل إغلاق F-001 وF-002 وF-004 وF-005 وF-008 وF-009 وF-010، ثم إجراء اختبار اختراق خارجي.
+السبب ليس نقص ميزة تجميلية، بل وجود blockers متبقية: audit غير durable، FKs وتسوية مالية غير مكتملة، dependency High advisories، وغياب تحقق MySQL/MariaDB الفعلي. أُغلقت F-001 وF-002 وF-003 وF-004 وF-005 في الكود ضمن نطاقها الحالي، لكن لا يصبح الإصدار جاهزًا قبل إغلاق F-008 وF-009 وF-010 وبقية domain findings، ثم إجراء اختبار اختراق خارجي.
 
-## 9. بوابة إطلاق إلزامية
+## 10. بوابة إطلاق إلزامية
 
 لا يجوز تغيير التصنيف إلى `RELEASE CANDIDATE` قبل تحقق كل ما يلي: إضافة CSRF/Origin defenses واختبارات browser؛ state/nonce OAuth؛ policy matrix لكل role؛ تقييد Activity export؛ durable audit/outbox؛ DB preflight وmigrations على MySQL؛ FKs المالية؛ إزالة localStorage user cache؛ معالجة High advisories أو اعتماد mitigations رسميًا؛ تشغيل restore drill؛ ومراجعة security headers/rate limiting/session TTL.
 
@@ -220,5 +226,6 @@ JWT session مدته سنة (`ONE_YEAR_MS`). توجد revocation بـ`jti`، ل�
 [14]: ../drizzle/0012_document_scan_fail_closed.sql "Fail-closed scan migration"
 [15]: ../drizzle/0013_immutable_ledger.sql "Immutable ledger migration"
 [16]: ../server/security.service.ts "Legacy security helpers"
-[17]: ../server/index.ts "Alternate runtime bootstrap"
-[18]: ../client/src/App.tsx "Reachable client routes"
+[17]: ../drizzle/0014_tenant_integrity_fks.sql "Tenant integrity FK migration"
+[18]: ../server/role-policy.test.ts "Least-privilege role tests"
+[19]: ../client/src/App.tsx "Reachable client routes"

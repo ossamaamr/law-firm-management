@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure, roleProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
@@ -60,6 +60,9 @@ const adminLawFirmProcedure = lawFirmProcedure.use(async ({ ctx, next }) => {
   }
   return next({ ctx });
 });
+
+const caseTeamProcedure = roleProcedure(["admin", "manager", "lawyer"] as const);
+const complianceProcedure = roleProcedure(["admin", "manager"] as const);
 
 const financeProcedure = lawFirmProcedure.use(async ({ ctx, next }) => {
   if (!["admin", "manager", "accountant"].includes(ctx.user.role)) {
@@ -475,7 +478,7 @@ export const appRouter = router({
 
   // ============ CASES ROUTER ============
   cases: router({
-    list: lawFirmProcedure.input(z.object({
+    list: caseTeamProcedure.input(z.object({
       status: z.string().optional(),
       search: z.string().trim().max(200).optional(),
       limit: z.number().int().min(1).max(100).default(50),
@@ -489,7 +492,7 @@ export const appRouter = router({
       });
     }),
 
-    get: lawFirmProcedure.input(z.number()).query(async ({ input, ctx }) => {
+    get: caseTeamProcedure.input(z.number()).query(async ({ input, ctx }) => {
       const caseData = await getCaseById(input);
       if (!caseData || caseData.lawFirmId !== ctx.lawFirmId) {
         throw new TRPCError({ code: "NOT_FOUND" });
@@ -497,7 +500,7 @@ export const appRouter = router({
       return caseData;
     }),
 
-    create: lawFirmProcedure.input(z.object({
+    create: caseTeamProcedure.input(z.object({
       caseNumber: z.string(),
       clientId: z.number(),
       lawyerId: z.number(),
@@ -579,7 +582,7 @@ export const appRouter = router({
       return newCase;
     }),
 
-    update: lawFirmProcedure.input(z.object({
+    update: caseTeamProcedure.input(z.object({
       id: z.number(),
       title: z.string().optional(),
       description: z.string().optional(),
@@ -593,7 +596,7 @@ export const appRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      const updated = await updateCase(input.id, {
+      const updated = await updateCase(input.id, ctx.lawFirmId, {
         title: input.title || caseData.title,
         description: input.description || caseData.description,
         status: input.status as any,
@@ -619,13 +622,14 @@ export const appRouter = router({
       return updated;
     }),
 
-    delete: lawFirmProcedure.input(z.number()).mutation(async ({ input, ctx }) => {
+    delete: caseTeamProcedure.input(z.number()).mutation(async ({ input, ctx }) => {
       const caseData = await getCaseById(input);
       if (!caseData || caseData.lawFirmId !== ctx.lawFirmId) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      await softDeleteCase(input);
+      const deleted = await softDeleteCase(input, ctx.lawFirmId);
+      if (!deleted) throw new TRPCError({ code: "NOT_FOUND" });
 
       // Log the action
       await createAuditLog({
@@ -647,14 +651,14 @@ export const appRouter = router({
 
   // ============ CLIENTS ROUTER ============
   clients: router({
-    list: lawFirmProcedure.input(z.object({
+    list: caseTeamProcedure.input(z.object({
       limit: z.number().int().min(1).max(100).default(50),
       offset: z.number().int().min(0).max(100000).default(0),
     }).default({ limit: 50, offset: 0 })).query(async ({ input, ctx }) => {
       return getClientsByLawFirm(ctx.lawFirmId, input);
     }),
 
-    get: lawFirmProcedure.input(z.number()).query(async ({ input, ctx }) => {
+    get: caseTeamProcedure.input(z.number()).query(async ({ input, ctx }) => {
       const client = await getClientById(input);
       if (!client || client.lawFirmId !== ctx.lawFirmId) {
         throw new TRPCError({ code: "NOT_FOUND" });
@@ -662,7 +666,7 @@ export const appRouter = router({
       return client;
     }),
 
-    create: lawFirmProcedure.input(z.object({
+    create: caseTeamProcedure.input(z.object({
       name: z.string(),
       email: z.string().email().optional(),
       phone: z.string().optional(),
@@ -687,7 +691,7 @@ export const appRouter = router({
       });
     }),
 
-    delete: lawFirmProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
+    delete: caseTeamProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
       const current = await getClientById(input);
       if (!current || current.lawFirmId !== ctx.lawFirmId) {
         throw new TRPCError({ code: "NOT_FOUND" });
@@ -704,7 +708,7 @@ export const appRouter = router({
       });
       return { success: true } as const;
     }),
-    update: lawFirmProcedure.input(z.object({
+    update: caseTeamProcedure.input(z.object({
       id: z.number().int().positive(),
       name: z.string().min(1).optional(),
       email: z.string().email().nullable().optional(),
@@ -727,7 +731,7 @@ export const appRouter = router({
       return updated;
     }),
 
-    conflictCheck: lawFirmProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
+    conflictCheck: complianceProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
       const current = await getClientById(input);
       if (!current || current.lawFirmId !== ctx.lawFirmId) {
         throw new TRPCError({ code: "NOT_FOUND" });
@@ -737,7 +741,7 @@ export const appRouter = router({
       return updated;
     }),
 
-    kycCheck: lawFirmProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
+    kycCheck: complianceProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
       const current = await getClientById(input);
       if (!current || current.lawFirmId !== ctx.lawFirmId) {
         throw new TRPCError({ code: "NOT_FOUND" });
@@ -781,7 +785,7 @@ export const appRouter = router({
 
   // ============ DOCUMENTS ROUTER ============
   documents: router({
-    listByCase: lawFirmProcedure.input(z.number()).query(async ({ input, ctx }) => {
+    listByCase: caseTeamProcedure.input(z.number()).query(async ({ input, ctx }) => {
       const caseData = await getCaseById(input);
       if (!caseData || caseData.lawFirmId !== ctx.lawFirmId) {
         throw new TRPCError({ code: "NOT_FOUND" });
@@ -790,7 +794,7 @@ export const appRouter = router({
       return documents.map(toSafeDocumentMetadata);
     }),
 
-    delete: lawFirmProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
+    delete: caseTeamProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
       const document = await getDocumentById(input, ctx.lawFirmId);
       if (!document) throw new TRPCError({ code: "NOT_FOUND" });
       await deleteDocument(document.id, ctx.lawFirmId);
@@ -805,7 +809,7 @@ export const appRouter = router({
       return { success: true } as const;
     }),
 
-    getDownloadUrl: lawFirmProcedure.input(z.number().int().positive()).query(async ({ input, ctx }) => {
+    getDownloadUrl: caseTeamProcedure.input(z.number().int().positive()).query(async ({ input, ctx }) => {
       const document = await getDocumentById(input, ctx.lawFirmId);
       if (!document) throw new TRPCError({ code: "NOT_FOUND" });
       if (document.scanStatus !== "clean") {

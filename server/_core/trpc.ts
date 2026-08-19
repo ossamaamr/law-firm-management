@@ -2,6 +2,7 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
+import type { User } from "../../drizzle/schema";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -26,6 +27,17 @@ const requireUser = t.middleware(async opts => {
 });
 
 export const protectedProcedure = t.procedure.use(requireUser);
+
+export const roleProcedure = (roles: readonly User["role"][]) =>
+  protectedProcedure.use(async ({ ctx, next }) => {
+    if (!ctx.user.lawFirmId) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "User not assigned to a law firm" });
+    }
+    if (!roles.includes(ctx.user.role)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient role permissions" });
+    }
+    return next({ ctx: { ...ctx, lawFirmId: ctx.user.lawFirmId } });
+  });
 
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {

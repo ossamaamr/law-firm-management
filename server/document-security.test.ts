@@ -24,7 +24,7 @@ const firmUser = {
   openId: "firm-a-user",
   name: "Firm A User",
   email: "a@example.com",
-  role: "user" as const,
+  role: "lawyer" as const,
   lawFirmId: 101,
   createdAt: new Date(),
   updatedAt: new Date(),

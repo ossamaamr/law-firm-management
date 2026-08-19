@@ -9,7 +9,7 @@ function contextFor(lawFirmId: number): TrpcContext {
       openId: `firm-${lawFirmId}-user`,
       name: `Firm ${lawFirmId} User`,
       email: `firm${lawFirmId}@example.com`,
-      role: "user" as const,
+      role: "lawyer" as const,
       lawFirmId,
       createdAt: new Date(),
       updatedAt: new Date(),

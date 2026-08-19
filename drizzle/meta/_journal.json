@@ -92,6 +92,13 @@
       "when": 1787153982144,
       "tag": "0013_immutable_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1787165731847,
+      "tag": "0014_tenant_integrity_fks",
+      "breakpoints": true
     }
   ]
 }

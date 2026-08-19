@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "./_core/trpc";
+import { roleProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import {
   getActivityLogs,
@@ -12,12 +12,15 @@ import {
  * مسارات تسجيل النشاطات
  */
 
+const activityAdminProcedure = roleProcedure(["admin", "manager"] as const);
+const activityTeamProcedure = roleProcedure(["admin", "manager", "lawyer"] as const);
+
 export const activityRouter = router({
   /**
    * Get activity logs for a firm
    * الحصول على سجلات النشاطات للمكتب
    */
-  getLogs: protectedProcedure
+  getLogs: activityAdminProcedure
     .input(
       z.object({
         firmId: z.number(),
@@ -60,7 +63,7 @@ export const activityRouter = router({
    * Get activity statistics
    * الحصول على إحصائيات النشاطات
    */
-  getStats: protectedProcedure
+  getStats: activityAdminProcedure
     .input(z.object({ firmId: z.number() }))
     .query(async ({ input, ctx }) => {
       try {
@@ -87,7 +90,7 @@ export const activityRouter = router({
    * Export activities as CSV
    * تصدير النشاطات كـ CSV
    */
-  exportCSV: protectedProcedure
+  exportCSV: activityAdminProcedure
     .input(
       z.object({
         firmId: z.number(),
@@ -126,7 +129,7 @@ export const activityRouter = router({
    * Get recent activities (for dashboard)
    * الحصول على النشاطات الأخيرة (للوحة التحكم)
    */
-  getRecent: protectedProcedure
+  getRecent: activityTeamProcedure
     .input(z.object({ firmId: z.number(), limit: z.number().optional().default(10) }))
     .query(async ({ input, ctx }) => {
       try {
@@ -155,7 +158,7 @@ export const activityRouter = router({
    * Get activities by entity
    * الحصول على النشاطات حسب الكيان
    */
-  getByEntity: protectedProcedure
+  getByEntity: activityAdminProcedure
     .input(
       z.object({
         firmId: z.number(),
@@ -196,7 +199,7 @@ export const activityRouter = router({
    * Get activities by user
    * الحصول على النشاطات حسب المستخدم
    */
-  getByUser: protectedProcedure
+  getByUser: activityAdminProcedure
     .input(
       z.object({
         firmId: z.number(),

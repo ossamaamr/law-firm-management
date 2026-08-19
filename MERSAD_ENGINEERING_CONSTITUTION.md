@@ -589,6 +589,14 @@
 
 أعيد بناء OAuth ليستخدم `/api/oauth/start` لتوليد nonce server-side قصير العمر داخل Cookie HttpOnly، وstate مركبًا يثبت redirect URI. يتحقق callback من nonce وredirect URI قبل أي token exchange، ويُمسح state cookie بعد النجاح أو الفشل. أضيفت متطلبات `PUBLIC_APP_ORIGIN` و`VITE_OAUTH_PORTAL_URL` إلى fail-fast production validation، وأزيل إنشاء state من المتصفح.
 
-أزيل تخزين user/session object في `localStorage` من `useAuth`، وحُذف `server/index.ts` لأنه bootstrap بديل غير مستخدم يحتوي surface غير محمي. تمت إضافة اختبارات CSRF/Origin وOAuth state/nonce، ونجحت بوابات القسم: `pnpm check`، و21 اختبارًا مركّزًا، ثم مجموعة المشروع الكاملة **144 اختبارًا ناجحًا و30 متخطيًا**، و`pnpm build`.
+أزيل تخزين user/session object في `localStorage` من `useAuth`، وحُذف `server/index.ts` لأنه bootstrap بديل غير مستخدم يحتوي surface غير محمي. تمت إضافة اختبارات CSRF/Origin وOAuth state/nonce، ونجحت بوابات القسم: `pnpm check`، و21 اختبارًا مركّزًا، ثم مجموعة المشروع الكاملة **148 اختبارًا ناجحًا و30 متخطيًا**، و`pnpm build`.
 
-لا يغلق هذا القسم جميع بوابات الإنتاج؛ ما زالت F-004 وF-005 وF-008 وF-009 وF-010 وغيرها مفتوحة، كما أن `pnpm audit --audit-level=high` يحتاج معالجة منفصلة. لا يجوز تغيير التصنيف إلى Production Ready بسبب إغلاق محيط الطلبات وحده.
+لا يغلق هذا القسم جميع بوابات الإنتاج؛ ما زالت F-008 وF-009 وF-010 وغيرها مفتوحة، كما أن `pnpm audit --audit-level=high` يحتاج معالجة منفصلة. لا يجوز تغيير التصنيف إلى Production Ready بسبب إغلاق محيط الطلبات وحده.
+
+## 25. القسم الثاني من خطة الإطلاق — Least Privilege وعزل Tenant وFK — 2026-08-19
+
+اكتمل تنفيذ القسم الثاني ضمن نطاق domain routers الحالي. أضيف `roleProcedure` مركزي إلى `server/_core/trpc.ts`، ثم فُصلت سياسات `caseTeamProcedure` للأدوار admin/manager/lawyer، و`complianceProcedure` للأدوار admin/manager، و`financeProcedure` للأدوار المالية. أصبحت قراءة وتعديل القضايا والعملاء والمستندات محصورة بفريق القضايا، بينما صارت KYC وconflict checks إدارية، وصار سجل النشاط التفصيلي والتصدير مقصورًا على admin/manager مع إبقاء recent محدودًا لفريق القضايا.
+
+تم تقوية العزل على مستوى الكتابة في `server/db.ts`: أصبحت `updateCase` و`softDeleteCase` تتطلبان `lawFirmId` داخل شرط SQL نفسه، وتتحقق عملية الحذف من `affectedRows`. كما أضيفت `0014_tenant_integrity_fks.sql` ومقابلها snapshot إلى migrations، وتشمل مفاتيح مركبة `id + lawFirmId` وFKs مركبة بين clients/matters/cases/projects، إضافة إلى FKs للقضايا والجلسات والمهام والمستندات والمستخدمين. تم إصلاح تعارض الترقيم مع `0013_immutable_ledger` وإثبات `drizzle-kit check` بنجاح باستخدام إعداد اتصال مؤقت غير محفوظ.
+
+أضيفت `server/role-policy.test.ts`، ووُسعت fixture اختبارات العزل إلى lawyer حتى تميز بين authorization وFirm A/Firm B isolation. نجحت بوابات القسم: `pnpm check`، و15 اختبارًا مركّزًا، و`drizzle-kit check`. لم تُطبق migration على MySQL حقيقية بعد، لذلك يبقى F-009 وقرار الإطلاق `NOT READY`.

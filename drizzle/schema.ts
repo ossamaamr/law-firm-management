@@ -134,6 +134,7 @@ export const clients = mysqlTable("clients", {
 }, (table) => ({
   lawFirmCreatedAtIdx: index("clients_lawFirm_createdAt_idx").on(table.lawFirmId, table.createdAt),
   lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "clients_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  idLawFirmUnique: unique("clients_id_lawFirmId_unique").on(table.id, table.lawFirmId),
 }));
 
 export type Client = typeof clients.$inferSelect;
@@ -186,6 +187,8 @@ export const matters = mysqlTable("matters", {
 }, (table) => ({
   lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "matters_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
   clientFk: foreignKey({ columns: [table.clientId], foreignColumns: [clients.id], name: "matters_clientId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  clientTenantFk: foreignKey({ columns: [table.clientId, table.lawFirmId], foreignColumns: [clients.id, clients.lawFirmId], name: "matters_client_tenant_fk" }).onDelete("restrict").onUpdate("cascade"),
+  idLawFirmUnique: unique("matters_id_lawFirmId_unique").on(table.id, table.lawFirmId),
   leadLawyerFk: foreignKey({ columns: [table.leadLawyerId], foreignColumns: [users.id], name: "matters_leadLawyerId_fk" }).onDelete("restrict").onUpdate("cascade"),
 }));
 
@@ -223,6 +226,8 @@ export const cases = mysqlTable("cases", {
   lawFirmStatusIdx: index("cases_lawFirm_status_idx").on(table.lawFirmId, table.status),
   lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "cases_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
   matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "cases_matterId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  matterTenantFk: foreignKey({ columns: [table.matterId, table.lawFirmId], foreignColumns: [matters.id, matters.lawFirmId], name: "cases_matter_tenant_fk" }).onDelete("restrict").onUpdate("cascade"),
+  idLawFirmUnique: unique("cases_id_lawFirmId_unique").on(table.id, table.lawFirmId),
 }));
 
 export type Case = typeof cases.$inferSelect;
@@ -250,7 +255,13 @@ export const projects = mysqlTable("projects", {
   isDeleted: boolean("isDeleted").default(false),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "projects_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "projects_matterId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  leadLawyerFk: foreignKey({ columns: [table.leadLawyerId], foreignColumns: [users.id], name: "projects_leadLawyerId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  matterTenantFk: foreignKey({ columns: [table.matterId, table.lawFirmId], foreignColumns: [matters.id, matters.lawFirmId], name: "projects_matter_tenant_fk" }).onDelete("restrict").onUpdate("cascade"),
+  idLawFirmUnique: unique("projects_id_lawFirmId_unique").on(table.id, table.lawFirmId),
+}));
 
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
@@ -270,7 +281,9 @@ export const courtSessions = mysqlTable("courtSessions", {
   notificationSent: boolean("notificationSent").default(false),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  caseFk: foreignKey({ columns: [table.caseId], foreignColumns: [cases.id], name: "courtSessions_caseId_fk" }).onDelete("restrict").onUpdate("cascade"),
+}));
 
 export type CourtSession = typeof courtSessions.$inferSelect;
 export type InsertCourtSession = typeof courtSessions.$inferInsert;
@@ -293,7 +306,13 @@ export const tasks = mysqlTable("tasks", {
   completedDate: timestamp("completedDate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "tasks_matterId_fk" }).onDelete("set null").onUpdate("cascade"),
+  caseFk: foreignKey({ columns: [table.caseId], foreignColumns: [cases.id], name: "tasks_caseId_fk" }).onDelete("set null").onUpdate("cascade"),
+  projectFk: foreignKey({ columns: [table.projectId], foreignColumns: [projects.id], name: "tasks_projectId_fk" }).onDelete("set null").onUpdate("cascade"),
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "tasks_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  assignedToFk: foreignKey({ columns: [table.assignedToId], foreignColumns: [users.id], name: "tasks_assignedToId_fk" }).onDelete("restrict").onUpdate("cascade"),
+}));
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
@@ -329,6 +348,11 @@ export const documents = mysqlTable("documents", {
   lawFirmMatterIdx: index("documents_lawFirm_matter_idx").on(table.lawFirmId, table.matterId),
   caseVersionIdx: index("documents_case_version_idx").on(table.lawFirmId, table.caseId, table.version),
   scanStatusIdx: index("documents_scan_status_idx").on(table.lawFirmId, table.scanStatus),
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "documents_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "documents_matterId_fk" }).onDelete("set null").onUpdate("cascade"),
+  caseFk: foreignKey({ columns: [table.caseId], foreignColumns: [cases.id], name: "documents_caseId_fk" }).onDelete("set null").onUpdate("cascade"),
+  projectFk: foreignKey({ columns: [table.projectId], foreignColumns: [projects.id], name: "documents_projectId_fk" }).onDelete("set null").onUpdate("cascade"),
+  uploadedByFk: foreignKey({ columns: [table.uploadedById], foreignColumns: [users.id], name: "documents_uploadedById_fk" }).onDelete("restrict").onUpdate("cascade"),
   previousVersionFk: foreignKey({
     columns: [table.previousVersionId],
     foreignColumns: [table.id],

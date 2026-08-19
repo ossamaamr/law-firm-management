@@ -554,11 +554,13 @@ export async function searchLawFirm(
   ].slice(offset, offset + limit);
 }
 
-export async function getCaseById(id: number): Promise<Case | undefined> {
+export async function getCaseById(id: number, lawFirmId?: number): Promise<Case | undefined> {
   const db = await getDb();
   if (!db) return undefined;
 
-  const result = await db.select().from(cases).where(eq(cases.id, id)).limit(1);
+  const conditions = [eq(cases.id, id)];
+  if (lawFirmId !== undefined) conditions.push(eq(cases.lawFirmId, lawFirmId));
+  const result = await db.select().from(cases).where(and(...conditions)).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -573,19 +575,27 @@ export async function createCase(data: Omit<Case, 'id' | 'createdAt' | 'updatedA
   return caseData;
 }
 
-export async function updateCase(id: number, data: Partial<Omit<Case, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Case | undefined> {
+export async function updateCase(
+  id: number,
+  lawFirmId: number,
+  data: Partial<Omit<Case, 'id' | 'createdAt' | 'updatedAt'>>,
+): Promise<Case | undefined> {
   const db = await getDb();
   if (!db) return undefined;
 
-  await db.update(cases).set(data as any).where(eq(cases.id, id));
-  return getCaseById(id);
+  await db.update(cases).set(data as any).where(and(eq(cases.id, id), eq(cases.lawFirmId, lawFirmId)));
+  return getCaseById(id, lawFirmId);
 }
 
-export async function softDeleteCase(id: number): Promise<void> {
+export async function softDeleteCase(id: number, lawFirmId: number): Promise<boolean> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(cases).set({ isDeleted: true }).where(eq(cases.id, id));
+  const result = await db.update(cases)
+    .set({ isDeleted: true })
+    .where(and(eq(cases.id, id), eq(cases.lawFirmId, lawFirmId)));
+  const header = Array.isArray(result) ? result[0] : result;
+  return Number((header as { affectedRows?: unknown } | null | undefined)?.affectedRows) === 1;
 }
 
 // ============ PROJECT QUERIES ============
