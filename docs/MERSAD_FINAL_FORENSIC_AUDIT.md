@@ -200,9 +200,13 @@ JWT session مدته سنة (`ONE_YEAR_MS`). توجد revocation بـ`jti`، ل�
 
 التصنيف النهائي: **NOT READY — لا تطلق المنصة على بيانات محامين أو عملاء حقيقية.**
 
-السبب ليس نقص ميزة تجميلية، بل وجود blockers متبقية: audit غير durable، FKs وتسوية مالية غير مكتملة، dependency High advisories، وغياب تحقق MySQL/MariaDB الفعلي. أُغلقت F-001 وF-002 وF-003 وF-004 وF-005 وF-007 في الكود ضمن نطاقها الحالي. أصبح F-008 وF-010 جزئيين فقط: audit persistence أصبح fail-closed، وأضيفت FKs وrelation validation للledger، لكن transactional coupling وfinancial reconciliation لم يكتملَا. لا يصبح الإصدار جاهزًا قبل إغلاق F-008 وF-009 وF-010 وبقية domain findings، ثم إجراء اختبار اختراق خارجي.
+السبب ليس نقص ميزة تجميلية، بل وجود blockers متبقية: audit غير durable، FKs وتسوية مالية غير مكتملة، dependency High advisories، وغياب تحقق MySQL/MariaDB الفعلي. أُغلقت F-001 وF-002 وF-003 وF-004 وF-005 وF-007 في الكود ضمن نطاقها الحالي. أصبح F-008 جزئيًا متقدمًا: أضيف outbox دائم مع eventKey وretry وprojection idempotency، وربط إنشاء القضية داخل transaction؛ لكن بقية mutations الحساسة وworker التشغيلي لم تكتمل. أصبح F-010 جزئيًا بسبب FKs وrelation validation دون reconciliation transaction كاملة. لا يصبح الإصدار جاهزًا قبل إغلاق F-008 وF-009 وF-010 وبقية domain findings، ثم إجراء اختبار اختراق خارجي.
 
-## 10. بوابة إطلاق إلزامية
+## 10. نتيجة القسم الرابع — Transactional Audit Outbox
+
+أُضيف `auditOutbox` في migration `drizzle/0016_audit_outbox.sql` مع حالات معالجة وbackoff وeventKey فريد، وأصبح `logActivity` يكتب outbox بدل إسقاط سجل النشاط مباشرة. يكتب `drainAuditOutbox` إسقاطات activity/audit داخل transaction ويمنع التكرار عبر uniqueness، بينما يستخدم `createCaseWithAudit` transaction واحدة لإنشاء القضية وحدث التدقيق. أثبتت البوابات **154 اختبارًا ناجحًا و30 متخطيًا** ونجاح check/build/diff check. لا تثبت هذه النتائج تطبيق MySQL أو تشغيل worker متعدد النسخ.
+
+## 11. بوابة إطلاق إلزامية
 
 لا يجوز تغيير التصنيف إلى `RELEASE CANDIDATE` قبل تحقق كل ما يلي: إضافة CSRF/Origin defenses واختبارات browser؛ state/nonce OAuth؛ policy matrix لكل role؛ تقييد Activity export؛ durable audit/outbox؛ DB preflight وmigrations على MySQL؛ FKs المالية؛ إزالة localStorage user cache؛ معالجة High advisories أو اعتماد mitigations رسميًا؛ تشغيل restore drill؛ ومراجعة security headers/rate limiting/session TTL.
 

@@ -522,6 +522,7 @@ export type InsertNotification = typeof notifications.$inferInsert;
  */
 export const auditLogs = mysqlTable("auditLogs", {
   id: int("id").autoincrement().primaryKey(),
+  eventKey: varchar("eventKey", { length: 191 }).unique(),
   userId: int("userId").notNull(),
   lawFirmId: int("lawFirmId").notNull(),
   matterId: int("matterId"),
@@ -549,6 +550,7 @@ export type InsertAuditLog = typeof auditLogs.$inferInsert;
  */
 export const activityLogs = mysqlTable("activityLogs", {
   id: int("id").autoincrement().primaryKey(),
+  eventKey: varchar("eventKey", { length: 191 }).unique(),
   firmId: int("firmId").notNull(),
   userId: int("userId").notNull(),
   actionType: varchar("actionType", { length: 32 }).notNull(),
@@ -566,6 +568,38 @@ export const activityLogs = mysqlTable("activityLogs", {
 
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;
+
+/**
+ * Transactional audit outbox - طابور تدقيق دائم وقابل لإعادة المحاولة.
+ * The business mutation writes the outbox row in the same database transaction;
+ * a worker later materializes it into the immutable audit/activity projections.
+ */
+export const auditOutbox = mysqlTable("auditOutbox", {
+  id: int("id").autoincrement().primaryKey(),
+  eventKey: varchar("eventKey", { length: 191 }).notNull().unique(),
+  firmId: int("firmId").notNull(),
+  userId: int("userId").notNull(),
+  actionType: varchar("actionType", { length: 32 }).notNull(),
+  entityType: varchar("entityType", { length: 64 }).notNull(),
+  entityId: int("entityId").notNull(),
+  entityName: varchar("entityName", { length: 255 }).notNull(),
+  payload: json("payload").notNull(),
+  status: mysqlEnum("status", ["pending", "processing", "processed", "failed"]).default("pending").notNull(),
+  attempts: int("attempts").default(0).notNull(),
+  availableAt: timestamp("availableAt").defaultNow().notNull(),
+  lockedAt: timestamp("lockedAt"),
+  processedAt: timestamp("processedAt"),
+  lastError: varchar("lastError", { length: 1000 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  pendingIdx: index("auditOutbox_status_availableAt_idx").on(table.status, table.availableAt),
+  firmCreatedAtIdx: index("auditOutbox_firm_createdAt_idx").on(table.firmId, table.createdAt),
+  firmFk: foreignKey({ columns: [table.firmId], foreignColumns: [lawFirms.id], name: "auditOutbox_firmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id], name: "auditOutbox_userId_fk" }).onDelete("restrict").onUpdate("cascade"),
+}));
+
+export type AuditOutbox = typeof auditOutbox.$inferSelect;
+export type InsertAuditOutbox = typeof auditOutbox.$inferInsert;
 
 /**
  * Relations

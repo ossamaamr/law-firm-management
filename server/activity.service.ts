@@ -1,4 +1,5 @@
-import { getDb } from "./db";
+import { randomUUID } from "node:crypto";
+import { enqueueAuditOutbox, getDb } from "./db";
 import { activityLogs } from "../drizzle/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
@@ -23,6 +24,8 @@ export interface ActivityLogInput {
     after?: Record<string, any>;
   };
   ipAddress?: string;
+  eventKey?: string;
+  tx?: any;
 }
 
 /**
@@ -30,26 +33,23 @@ export interface ActivityLogInput {
  * تسجيل نشاط
  */
 export async function logActivity(input: ActivityLogInput): Promise<void> {
-  const db = await getDb();
-  if (!db) {
-    throw new Error("Activity log persistence is unavailable");
-  }
-
+  const eventKey = input.eventKey ?? `activity:${input.firmId}:${input.actionType}:${input.entityType}:${input.entityId}:${randomUUID()}`;
   try {
-    await db.insert(activityLogs).values({
+    await enqueueAuditOutbox({
+      eventKey,
       firmId: input.firmId,
       userId: input.userId,
       actionType: input.actionType,
       entityType: input.entityType,
       entityId: input.entityId,
       entityName: input.entityName,
-      changes: input.changes ?? null,
-      ipAddress: input.ipAddress || "unknown",
-      createdAt: new Date(),
-    });
-
+      payload: {
+        ...(input.changes ?? {}),
+        ipAddress: input.ipAddress || "unknown",
+      },
+    }, input.tx);
   } catch (error) {
-    console.error("[Activity Log] Persistence failed", error instanceof Error ? error.message : "unknown error");
+    console.error("[Activity Log] Outbox persistence failed", error instanceof Error ? error.message : "unknown error");
     throw new Error("Activity log persistence failed", { cause: error });
   }
 }

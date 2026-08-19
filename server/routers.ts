@@ -7,7 +7,7 @@ import { publicProcedure, router, protectedProcedure, roleProcedure } from "./_c
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
-  getCasesByLawFirm, getCaseById, createCase, updateCase, softDeleteCase,
+  getCasesByLawFirm, getCaseById, createCaseWithAudit, updateCase, softDeleteCase,
   getClientsByLawFirm, getClientById, createClient, updateClientInLawFirm, deleteClientInLawFirm,
   getSessionsByCaseId, getUpcomingSessions, createCourtSession,
   getDocumentsByCaseId, createDocument, deleteDocument,
@@ -533,7 +533,7 @@ export const appRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Related resource not found" });
       }
 
-      const newCase = await createCase({
+      const newCase = await createCaseWithAudit({
         matterId: input.matterId,
         lawFirmId: ctx.lawFirmId,
         caseNumber: input.caseNumber,
@@ -553,20 +553,19 @@ export const appRouter = router({
         isDeleted: false,
         partyRole: null,
         status: "open",
-      });
-
-      // Log the action
-      await createAuditLog({
-        matterId: null,
-        projectId: null,
+      }, {
+        eventKey: `case:create:${ctx.lawFirmId}:${input.caseNumber}`,
+        firmId: ctx.lawFirmId,
         userId: ctx.user.id,
-        lawFirmId: ctx.lawFirmId,
-        caseId: newCase.id,
-        action: "CREATE",
+        actionType: "create",
         entityType: "case",
-        entityId: newCase.id,
-        changes: { created: newCase },
-        ipAddress: ctx.req.headers["x-forwarded-for"] as string || null,
+        entityName: input.title,
+        payload: {
+          created: true,
+          caseNumber: input.caseNumber,
+          matterId: input.matterId,
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string || "unknown",
+        },
       });
 
       // Notification is a non-critical side effect; durable case creation must not fail when the optional service is unavailable.

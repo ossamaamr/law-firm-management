@@ -4,11 +4,11 @@ import {
   InsertUser, users, sessionRevocations,
   lawFirms, brandingSettings, userInvitations, registrationRequests, clients, matters, cases, projects, courtSessions, 
   tasks, documents, timesheets, expenses, duePayments, invoices, ledgerEntries,
-  notifications, auditLogs, legalServiceRequests,
+  notifications, auditLogs, activityLogs, auditOutbox, legalServiceRequests,
   type User, type LawFirm, type Client, type Matter, type Case, type Project, 
   type CourtSession, type Task, type Document, type Timesheet, type Expense,
   type DuePayment, type Invoice, type LedgerEntry, type Notification, type AuditLog, type LegalServiceRequest,
-  type BrandingSettings, type UserInvitation, type RegistrationRequest
+  type BrandingSettings, type UserInvitation, type RegistrationRequest, type AuditOutbox
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -575,6 +575,32 @@ export async function createCase(data: Omit<Case, 'id' | 'createdAt' | 'updatedA
   return caseData;
 }
 
+export async function createCaseWithAudit(
+  data: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>,
+  audit: Omit<AuditOutboxInput, 'entityId' | 'entityName' | 'payload'> & {
+    entityName: string;
+    payload: Record<string, unknown>;
+  },
+): Promise<Case> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.transaction(async (tx) => {
+    const result = await tx.insert(cases).values(data as any);
+    const id = getInsertId(result);
+    const [created] = await tx.select().from(cases).where(eq(cases.id, id)).limit(1);
+    if (!created) throw new Error("Failed to create case inside transaction");
+
+    await enqueueAuditOutbox({
+      ...audit,
+      entityId: created.id,
+      entityName: audit.entityName,
+      payload: audit.payload,
+    }, tx);
+    return created;
+  });
+}
+
 export async function updateCase(
   id: number,
   lawFirmId: number,
@@ -783,7 +809,7 @@ export async function markNotificationAsRead(id: number, userId: number): Promis
 
 // ============ AUDIT LOG QUERIES ============
 
-export async function createAuditLog(data: Omit<AuditLog, 'id' | 'createdAt'>): Promise<AuditLog> {
+export async function createAuditLog(data: Omit<AuditLog, 'id' | 'createdAt' | 'eventKey'> & { eventKey?: string | null }): Promise<AuditLog> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -802,6 +828,120 @@ export async function getAuditLogsByCaseId(caseId: number, limit: number = 100):
     .where(eq(auditLogs.caseId, caseId))
     .orderBy(desc(auditLogs.createdAt))
     .limit(limit);
+}
+
+// ============ TRANSACTIONAL AUDIT OUTBOX ============
+
+export type AuditOutboxInput = {
+  eventKey: string;
+  firmId: number;
+  userId: number;
+  actionType: string;
+  entityType: string;
+  entityId: number;
+  entityName: string;
+  payload: Record<string, unknown>;
+};
+
+export async function enqueueAuditOutbox(input: AuditOutboxInput, tx?: any): Promise<AuditOutbox> {
+  const db = tx ?? await getDb();
+  if (!db) throw new Error("Database not available");
+  if (!/^[A-Za-z0-9:_-]{8,191}$/.test(input.eventKey)) {
+    throw new Error("Audit outbox event key is invalid");
+  }
+
+  await db.insert(auditOutbox).values({
+    eventKey: input.eventKey,
+    firmId: input.firmId,
+    userId: input.userId,
+    actionType: input.actionType,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    entityName: input.entityName,
+    payload: input.payload,
+    status: "pending",
+    attempts: 0,
+    availableAt: new Date(),
+  }).onDuplicateKeyUpdate({ set: { eventKey: input.eventKey } });
+
+  const [row] = await db.select().from(auditOutbox)
+    .where(eq(auditOutbox.eventKey, input.eventKey))
+    .limit(1);
+  if (!row) throw new Error("Audit outbox row could not be read after enqueue");
+  return row;
+}
+
+export async function drainAuditOutbox(limit = 25): Promise<{ processed: number; failed: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const batchSize = Math.min(Math.max(limit, 1), 100);
+  const pending = await db.select().from(auditOutbox)
+    .where(eq(auditOutbox.status, "pending"))
+    .orderBy(auditOutbox.createdAt)
+    .limit(batchSize);
+  let processed = 0;
+  let failed = 0;
+
+  for (const row of pending) {
+    const claimed = await db.update(auditOutbox)
+      .set({ status: "processing", lockedAt: new Date(), attempts: row.attempts + 1 })
+      .where(and(eq(auditOutbox.id, row.id), eq(auditOutbox.status, "pending")));
+    const claimedHeader = Array.isArray(claimed) ? claimed[0] : claimed;
+    if (Number((claimedHeader as { affectedRows?: number })?.affectedRows ?? 0) !== 1) continue;
+
+    try {
+      await db.transaction(async (tx) => {
+        const [current] = await tx.select().from(auditOutbox)
+          .where(and(eq(auditOutbox.id, row.id), eq(auditOutbox.status, "processing")))
+          .limit(1);
+        if (!current) throw new Error("Audit outbox claim disappeared");
+
+        const payload = (current.payload ?? {}) as Record<string, unknown>;
+        await tx.insert(activityLogs).values({
+          eventKey: current.eventKey,
+          firmId: current.firmId,
+          userId: current.userId,
+          actionType: current.actionType,
+          entityType: current.entityType,
+          entityId: current.entityId,
+          entityName: current.entityName,
+          changes: payload,
+          ipAddress: typeof payload.ipAddress === "string" ? payload.ipAddress : "unknown",
+          createdAt: current.createdAt,
+        }).onDuplicateKeyUpdate({ set: { eventKey: current.eventKey } });
+        await tx.insert(auditLogs).values({
+          eventKey: current.eventKey,
+          userId: current.userId,
+          lawFirmId: current.firmId,
+          matterId: typeof payload.matterId === "number" ? payload.matterId : null,
+          caseId: typeof payload.caseId === "number" ? payload.caseId : null,
+          projectId: typeof payload.projectId === "number" ? payload.projectId : null,
+          action: current.actionType,
+          entityType: current.entityType,
+          entityId: current.entityId,
+          changes: payload,
+          ipAddress: typeof payload.ipAddress === "string" ? payload.ipAddress : "unknown",
+          createdAt: current.createdAt,
+        }).onDuplicateKeyUpdate({ set: { eventKey: current.eventKey } });
+        await tx.update(auditOutbox).set({
+          status: "processed",
+          processedAt: new Date(),
+          lockedAt: null,
+          lastError: null,
+        }).where(and(eq(auditOutbox.id, current.id), eq(auditOutbox.status, "processing")));
+      });
+      processed += 1;
+    } catch (error) {
+      failed += 1;
+      await db.update(auditOutbox).set({
+        status: "failed",
+        lockedAt: null,
+        lastError: error instanceof Error ? error.message.slice(0, 1000) : "unknown error",
+        availableAt: new Date(Date.now() + Math.min(60_000, 2 ** row.attempts * 1_000)),
+      }).where(and(eq(auditOutbox.id, row.id), eq(auditOutbox.status, "processing")));
+    }
+  }
+  return { processed, failed };
 }
 
 // ============ TIMESHEET QUERIES ============

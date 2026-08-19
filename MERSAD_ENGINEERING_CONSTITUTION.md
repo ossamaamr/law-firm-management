@@ -610,3 +610,13 @@
 أضيفت validation مالية داخل `appendLedgerEntry`: يجب أن يكون المنشئ ضمن المكتب، وأن تنتمي matter وinvoice وduePayment إلى `lawFirmId` نفسه قبل الإدراج. كما أضيفت `0015_financial_audit_fks.sql` وsnapshot متوافق، وتتضمن FKs للفواتير والمطالبات والledger والمستخدمين والمكتب وسجل التدقيق والنشاط. نجحت البوابات الكاملة: `pnpm check`، و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا**، و`pnpm build`، و`git diff --check`.
 
 لا يُغلق هذا القسم F-008 أو F-010 بالكامل؛ فـtransactional outbox، وaudit coupling، وfinancial reconciliation ما زالت مطلوبة، كما لم تُطبق migration على MySQL حقيقية. لذلك يبقى F-009 مفتوحًا وتصنيف المنصة `NOT READY`.
+
+## 27. القسم الرابع من خطة الإطلاق — Transactional Audit Outbox — 2026-08-19
+
+أُضيف جدول `auditOutbox` الدائم في `drizzle/schema.ts` مع migration `0016_audit_outbox.sql`. يحتوي الجدول على `eventKey` فريد، وحالات `pending/processing/processed/failed`، وعداد محاولات، ووقت إتاحة، وقفل، ووقت معالجة، ورسالة خطأ، وFKs للمكتب والمستخدم. يمنع eventKey تكرار الحدث عند إعادة المحاولة أو إعادة تشغيل worker.
+
+أصبحت `logActivity` تضع الحدث في outbox بدل إدراج projection مباشر، مع fail-closed behavior. أضيف `drainAuditOutbox` الذي يطالب بالصف بشكل مشروط، ويكتب activity وaudit projections داخل transaction واحدة، ثم يعلّم الحدث processed. عند الفشل ينتقل الحدث إلى failed مع backoff، وتوجد uniqueness على eventKey في الإسقاطات لمنع التكرار بعد crash.
+
+رُبط إنشاء القضية عبر `createCaseWithAudit`؛ حيث تُدرج القضية وoutbox event في transaction MySQL واحدة، فلا يمكن نجاح إنشاء القضية دون إنشاء أثر تدقيق دائم. نجحت بوابات القسم: `pnpm check`، و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا**، و`pnpm build`، و`git diff --check`.
+
+هذا لا يغلق F-008 بالكامل؛ ما زالت mutations الحساسة الأخرى تحتاج استخدام transaction helper نفسه، كما أن تشغيل drain في بيئة متعددة النسخ يحتاج scheduler/worker تشغيليًا ومراقبة، ويجب تطبيق migration واختبارها على MySQL حقيقية قبل أي release sign-off. لذلك يبقى التصنيف `NOT READY`.
