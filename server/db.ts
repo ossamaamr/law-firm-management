@@ -2,13 +2,13 @@ import { eq, and, desc, asc, like, sql, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
-  lawFirms, brandingSettings, userInvitations, clients, matters, cases, projects, courtSessions, 
+  lawFirms, brandingSettings, userInvitations, registrationRequests, clients, matters, cases, projects, courtSessions, 
   tasks, documents, timesheets, expenses, duePayments, invoices,
   notifications, auditLogs, legalServiceRequests,
   type User, type LawFirm, type Client, type Matter, type Case, type Project, 
   type CourtSession, type Task, type Document, type Timesheet, type Expense,
   type DuePayment, type Invoice, type Notification, type AuditLog, type LegalServiceRequest,
-  type BrandingSettings, type UserInvitation
+  type BrandingSettings, type UserInvitation, type RegistrationRequest
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -196,12 +196,59 @@ export async function markInvitationAccepted(invitationId: number, userId: numbe
 
 // ============ LAW FIRM QUERIES ============
 
+export async function getLawFirmByIdentifier(identifier: string): Promise<LawFirm | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(lawFirms).where(eq(lawFirms.identifier, identifier)).limit(1);
+  return result[0];
+}
+
 export async function getLawFirmById(id: number): Promise<LawFirm | undefined> {
   const db = await getDb();
   if (!db) return undefined;
 
   const result = await db.select().from(lawFirms).where(eq(lawFirms.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ============ REGISTRATION REQUEST QUERIES ============
+
+export async function getRegistrationRequestsByLawFirm(lawFirmId: number): Promise<RegistrationRequest[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(registrationRequests).where(eq(registrationRequests.lawFirmId, lawFirmId)).orderBy(desc(registrationRequests.createdAt)).limit(100);
+}
+
+export async function getRegistrationRequestsByUser(userId: number): Promise<RegistrationRequest[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(registrationRequests).where(eq(registrationRequests.requesterUserId, userId)).orderBy(desc(registrationRequests.createdAt)).limit(20);
+}
+
+export async function createRegistrationRequest(
+  data: Omit<RegistrationRequest, "id" | "createdAt" | "updatedAt" | "reviewedById" | "reviewedAt" | "rejectionReason">,
+): Promise<RegistrationRequest> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(registrationRequests).values(data as any);
+  const id = (result as any).insertId;
+  const rows = await db.select().from(registrationRequests).where(eq(registrationRequests.id, id)).limit(1);
+  if (!rows[0]) throw new Error("Failed to create registration request");
+  return rows[0];
+}
+
+export async function reviewRegistrationRequest(
+  lawFirmId: number,
+  requestId: number,
+  status: RegistrationRequest["status"],
+  reviewedById: number,
+  rejectionReason?: string,
+): Promise<RegistrationRequest | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(registrationRequests).set({ status, reviewedById, reviewedAt: new Date(), rejectionReason: rejectionReason ?? null }).where(and(eq(registrationRequests.id, requestId), eq(registrationRequests.lawFirmId, lawFirmId), eq(registrationRequests.status, "pending")));
+  const rows = await db.select().from(registrationRequests).where(and(eq(registrationRequests.id, requestId), eq(registrationRequests.lawFirmId, lawFirmId))).limit(1);
+  return rows[0];
 }
 
 export async function createLawFirm(data: Omit<LawFirm, 'id' | 'createdAt' | 'updatedAt'>): Promise<LawFirm> {

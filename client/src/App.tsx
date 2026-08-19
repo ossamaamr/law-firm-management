@@ -11,6 +11,7 @@ import Clients from "./pages/Clients";
 import Cases from "./pages/Cases";
 import LoginPage from "./pages/LoginPage";
 import InviteAcceptPage from "./pages/InviteAcceptPage";
+import JoinFirmPage from "./pages/JoinFirmPage";
 import { Analytics } from "./components/Analytics";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path={"/"} component={CasEngineDashboard} />
       <Route path={"/login"} component={LoginPage} />
       <Route path={"/invite/:token"} component={InviteAcceptPage} />
+      <Route path={"/join"} component={JoinFirmPage} />
       <Route path={"/dashboard"} component={CasEngineDashboard} />
       <Route path={"/clients"} component={Clients} />
       <Route path={"/cases"} component={Cases} />

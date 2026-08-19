@@ -94,6 +94,25 @@ export const CasEngineDashboard: React.FC = () => {
     },
     onError: error => toast.error(error.message || (language === 'ar' ? 'تعذر إلغاء الدعوة' : 'Unable to revoke invitation')),
   });
+  const registrationRequestsQuery = trpc.admin.registrationRequests.list.useQuery(undefined, {
+    enabled: Boolean(user?.lawFirmId && canManageAdmin),
+  });
+  const [rejectionReason, setRejectionReason] = useState('');
+  const approveRegistrationMutation = trpc.admin.registrationRequests.approve.useMutation({
+    onSuccess: async () => {
+      await registrationRequestsQuery.refetch();
+      toast.success(language === 'ar' ? 'تمت الموافقة وربط المستخدم بالمكتب' : 'Request approved and user assigned');
+    },
+    onError: error => toast.error(error.message || (language === 'ar' ? 'تعذرت الموافقة' : 'Unable to approve request')),
+  });
+  const rejectRegistrationMutation = trpc.admin.registrationRequests.reject.useMutation({
+    onSuccess: async () => {
+      setRejectionReason('');
+      await registrationRequestsQuery.refetch();
+      toast.success(language === 'ar' ? 'تم رفض الطلب' : 'Request rejected');
+    },
+    onError: error => toast.error(error.message || (language === 'ar' ? 'تعذر رفض الطلب' : 'Unable to reject request')),
+  });
   const brandingMutation = trpc.branding.update.useMutation({
     onSuccess: async () => {
       await brandingQuery.refetch();
@@ -745,6 +764,54 @@ export const CasEngineDashboard: React.FC = () => {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">{language === 'ar' ? 'لا توجد دعوات حالية.' : 'No invitations yet.'}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="xl:col-span-2">
+                <CardHeader>
+                  <CardTitle>{language === 'ar' ? 'طلبات الانضمام المعلقة' : 'Pending join requests'}</CardTitle>
+                  <CardDescription>{language === 'ar' ? 'راجع الطلبات المرتبطة بهذا المكتب فقط. لا يمكن اعتماد مستخدم مرتبط بمكتب آخر.' : 'Review requests for this firm only. Users already assigned elsewhere cannot be approved.'}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={rejectionReason}
+                      onChange={event => setRejectionReason(event.target.value)}
+                      placeholder={language === 'ar' ? 'سبب الرفض عند الحاجة' : 'Rejection reason when needed'}
+                      maxLength={500}
+                    />
+                  </div>
+                  {registrationRequestsQuery.data?.length ? (
+                    <div className="overflow-x-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground"><tr>
+                          <th className="p-3 text-start font-medium">{language === 'ar' ? 'المتقدم' : 'Requester'}</th>
+                          <th className="p-3 text-start font-medium">{language === 'ar' ? 'الدور' : 'Role'}</th>
+                          <th className="p-3 text-start font-medium">{language === 'ar' ? 'الحالة' : 'Status'}</th>
+                          <th className="p-3 text-start font-medium">{language === 'ar' ? 'الإجراء' : 'Action'}</th>
+                        </tr></thead>
+                        <tbody>
+                          {registrationRequestsQuery.data.map(request => (
+                            <tr key={request.id} className="border-t">
+                              <td className="p-3"><div className="font-medium">{request.fullName}</div><div className="text-xs text-muted-foreground" dir="ltr">{request.email}</div></td>
+                              <td className="p-3">{request.requestedRole}</td>
+                              <td className="p-3"><Badge variant={request.status === 'pending' ? 'secondary' : 'outline'}>{request.status}</Badge></td>
+                              <td className="p-3">
+                                {request.status === 'pending' && (
+                                  <div className="flex gap-1">
+                                    <Button type="button" size="sm" disabled={approveRegistrationMutation.isPending || rejectRegistrationMutation.isPending} onClick={() => approveRegistrationMutation.mutate({ requestId: request.id })}>{language === 'ar' ? 'موافقة' : 'Approve'}</Button>
+                                    <Button type="button" variant="ghost" size="sm" disabled={!rejectionReason.trim() || rejectRegistrationMutation.isPending} onClick={() => rejectRegistrationMutation.mutate({ requestId: request.id, rejectionReason })}>{language === 'ar' ? 'رفض' : 'Reject'}</Button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{language === 'ar' ? 'لا توجد طلبات انضمام.' : 'No join requests.'}</p>
                   )}
                 </CardContent>
               </Card>

@@ -18,6 +18,8 @@ import {
   updateUserRoleInLawFirm, getDb,
   getInvitationsByLawFirm, getInvitationByTokenHash, createUserInvitation,
   revokeUserInvitation, assignUserToLawFirm, markInvitationAccepted,
+  getLawFirmByIdentifier, getRegistrationRequestsByLawFirm, getRegistrationRequestsByUser,
+  createRegistrationRequest, reviewRegistrationRequest,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
@@ -123,7 +125,111 @@ export const appRouter = router({
     }),
   }),
 
+  registration: router({
+    mine: protectedProcedure.query(async ({ ctx }) => {
+      return getRegistrationRequestsByUser(ctx.user.id);
+    }),
+    requestToJoin: protectedProcedure.input(z.object({
+      firmIdentifier: z.string().trim().regex(/^@[a-zA-Z0-9_-]+#$/),
+      fullName: z.string().trim().min(2).max(255),
+      phone: z.string().trim().max(32).optional(),
+      requestedRole: z.enum(["lawyer", "accountant", "user"]).default("user"),
+    })).mutation(async ({ input, ctx }) => {
+      if (ctx.user.lawFirmId) {
+        throw new TRPCError({ code: "CONFLICT", message: "User is already assigned to a law firm" });
+      }
+      if (!ctx.user.email) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Authenticated email is required" });
+      }
+      const firm = await getLawFirmByIdentifier(input.firmIdentifier);
+      if (!firm) throw new TRPCError({ code: "NOT_FOUND", message: "Law firm identifier was not found" });
+      const previous = await getRegistrationRequestsByUser(ctx.user.id);
+      const active = previous.find(request => request.lawFirmId === firm.id && request.status === "pending");
+      if (active) throw new TRPCError({ code: "CONFLICT", message: "A pending request already exists" });
+      const created = await createRegistrationRequest({
+        lawFirmId: firm.id,
+        requesterUserId: ctx.user.id,
+        fullName: input.fullName,
+        email: ctx.user.email.trim().toLowerCase(),
+        phone: input.phone || null,
+        requestedRole: input.requestedRole,
+        status: "pending",
+      });
+      await logActivity({
+        firmId: firm.id,
+        userId: ctx.user.id,
+        actionType: "create",
+        entityType: "registration_request",
+        entityId: created.id,
+        entityName: created.email,
+        changes: { after: { status: created.status, requestedRole: created.requestedRole } },
+        ipAddress: ctx.req.headers["x-forwarded-for"] as string || undefined,
+      });
+      return { id: created.id, status: created.status, firmName: firm.name } as const;
+    }),
+  }),
+
   admin: router({
+    registrationRequests: router({
+      list: adminLawFirmProcedure.query(async ({ ctx }) => {
+        const requests = await getRegistrationRequestsByLawFirm(ctx.lawFirmId);
+        return requests.map(request => ({
+          id: request.id,
+          fullName: request.fullName,
+          email: request.email,
+          phone: request.phone,
+          requestedRole: request.requestedRole,
+          status: request.status,
+          rejectionReason: request.rejectionReason,
+          createdAt: request.createdAt,
+          reviewedAt: request.reviewedAt,
+        }));
+      }),
+      approve: adminLawFirmProcedure.input(z.object({ requestId: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+        const requests = await getRegistrationRequestsByLawFirm(ctx.lawFirmId);
+        const request = requests.find(item => item.id === input.requestId);
+        if (!request || request.status !== "pending") throw new TRPCError({ code: "NOT_FOUND", message: "Pending request not found" });
+        const target = await getUserById(request.requesterUserId);
+        if (!target || target.lawFirmId) throw new TRPCError({ code: "CONFLICT", message: "Requester is no longer eligible" });
+        if (!target.email || target.email.trim().toLowerCase() !== request.email) throw new TRPCError({ code: "CONFLICT", message: "Requester email no longer matches" });
+        const joined = await assignUserToLawFirm(target.id, ctx.lawFirmId, request.requestedRole);
+        if (!joined || joined.lawFirmId !== ctx.lawFirmId) throw new TRPCError({ code: "CONFLICT", message: "Unable to assign requester to the firm" });
+        const reviewed = await reviewRegistrationRequest(ctx.lawFirmId, request.id, "approved", ctx.user.id);
+        if (!reviewed) throw new TRPCError({ code: "CONFLICT", message: "Request could not be reviewed" });
+        await logActivity({
+          firmId: ctx.lawFirmId,
+          userId: ctx.user.id,
+          actionType: "update",
+          entityType: "registration_request",
+          entityId: request.id,
+          entityName: request.email,
+          changes: { before: { status: request.status }, after: { status: reviewed.status, userId: target.id, role: request.requestedRole } },
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string || undefined,
+        });
+        return { success: true, userId: target.id, status: reviewed.status } as const;
+      }),
+      reject: adminLawFirmProcedure.input(z.object({
+        requestId: z.number().int().positive(),
+        rejectionReason: z.string().trim().min(2).max(500),
+      })).mutation(async ({ input, ctx }) => {
+        const requests = await getRegistrationRequestsByLawFirm(ctx.lawFirmId);
+        const request = requests.find(item => item.id === input.requestId);
+        if (!request || request.status !== "pending") throw new TRPCError({ code: "NOT_FOUND", message: "Pending request not found" });
+        const reviewed = await reviewRegistrationRequest(ctx.lawFirmId, request.id, "rejected", ctx.user.id, input.rejectionReason);
+        if (!reviewed) throw new TRPCError({ code: "CONFLICT", message: "Request could not be reviewed" });
+        await logActivity({
+          firmId: ctx.lawFirmId,
+          userId: ctx.user.id,
+          actionType: "update",
+          entityType: "registration_request",
+          entityId: request.id,
+          entityName: request.email,
+          changes: { before: { status: request.status }, after: { status: reviewed.status, rejectionReason: reviewed.rejectionReason } },
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string || undefined,
+        });
+        return { success: true, status: reviewed.status } as const;
+      }),
+    }),
     invitations: router({
       list: adminLawFirmProcedure.query(async ({ ctx }) => {
         const invitations = await getInvitationsByLawFirm(ctx.lawFirmId);

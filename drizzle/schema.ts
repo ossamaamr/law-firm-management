@@ -26,6 +26,7 @@ export type InsertUser = typeof users.$inferInsert;
 export const lawFirms = mysqlTable("lawFirms", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
+  identifier: varchar("identifier", { length: 80 }).unique(),
   email: varchar("email", { length: 320 }),
   phone: varchar("phone", { length: 20 }),
   address: text("address"),
@@ -79,6 +80,28 @@ export const userInvitations = mysqlTable("userInvitations", {
 
 export type UserInvitation = typeof userInvitations.$inferSelect;
 export type InsertUserInvitation = typeof userInvitations.$inferInsert;
+
+/**
+ * Registration requests - طلبات الانضمام المعلقة إلى مكتب قائم
+ */
+export const registrationRequests = mysqlTable("registrationRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  lawFirmId: int("lawFirmId").notNull(),
+  requesterUserId: int("requesterUserId").notNull(),
+  fullName: varchar("fullName", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 32 }),
+  requestedRole: mysqlEnum("requestedRole", ["lawyer", "accountant", "user"]).default("user").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  rejectionReason: text("rejectionReason"),
+  reviewedById: int("reviewedById"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type RegistrationRequest = typeof registrationRequests.$inferSelect;
+export type InsertRegistrationRequest = typeof registrationRequests.$inferInsert;
 
 /**
  * Clients table - العملاء (الموكلين)
