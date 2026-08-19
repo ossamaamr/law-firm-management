@@ -1,14 +1,14 @@
-import { eq, and, desc, asc, like, sql } from "drizzle-orm";
+import { eq, and, desc, asc, like, sql, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
-  lawFirms, brandingSettings, clients, matters, cases, projects, courtSessions, 
+  lawFirms, brandingSettings, userInvitations, clients, matters, cases, projects, courtSessions, 
   tasks, documents, timesheets, expenses, duePayments, invoices,
   notifications, auditLogs, legalServiceRequests,
   type User, type LawFirm, type Client, type Matter, type Case, type Project, 
   type CourtSession, type Task, type Document, type Timesheet, type Expense,
   type DuePayment, type Invoice, type Notification, type AuditLog, type LegalServiceRequest,
-  type BrandingSettings
+  type BrandingSettings, type UserInvitation
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -123,6 +123,75 @@ export async function updateUserRoleInLawFirm(
     .set({ role })
     .where(and(eq(users.id, userId), eq(users.lawFirmId, lawFirmId)));
   return getUserById(userId);
+}
+
+export async function assignUserToLawFirm(
+  userId: number,
+  lawFirmId: number,
+  role: User["role"],
+): Promise<User | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(users)
+    .set({ lawFirmId, role })
+    .where(and(eq(users.id, userId), isNull(users.lawFirmId)));
+  return getUserById(userId);
+}
+
+// ============ USER INVITATION QUERIES ============
+
+export async function getInvitationsByLawFirm(lawFirmId: number): Promise<UserInvitation[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(userInvitations)
+    .where(eq(userInvitations.lawFirmId, lawFirmId))
+    .orderBy(desc(userInvitations.createdAt))
+    .limit(100);
+}
+
+export async function getInvitationByTokenHash(tokenHash: string): Promise<UserInvitation | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(userInvitations)
+    .where(eq(userInvitations.tokenHash, tokenHash))
+    .limit(1);
+  return result[0];
+}
+
+export async function createUserInvitation(
+  data: Omit<UserInvitation, "id" | "createdAt" | "updatedAt" | "acceptedById" | "acceptedAt" | "revokedAt">,
+): Promise<UserInvitation> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(userInvitations).values(data as any);
+  const id = (result as any).insertId;
+  const invitation = await db.select().from(userInvitations).where(eq(userInvitations.id, id)).limit(1);
+  if (!invitation[0]) throw new Error("Failed to create invitation");
+  return invitation[0];
+}
+
+export async function revokeUserInvitation(lawFirmId: number, invitationId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(userInvitations)
+    .set({ status: "revoked", revokedAt: new Date() })
+    .where(and(eq(userInvitations.id, invitationId), eq(userInvitations.lawFirmId, lawFirmId), eq(userInvitations.status, "pending")));
+}
+
+export async function markInvitationAccepted(invitationId: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(userInvitations)
+    .set({ status: "accepted", acceptedById: userId, acceptedAt: new Date() })
+    .where(and(eq(userInvitations.id, invitationId), eq(userInvitations.status, "pending")));
 }
 
 // ============ LAW FIRM QUERIES ============

@@ -1,5 +1,6 @@
 import { COOKIE_NAME } from "@shared/const";
 import { sql } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
@@ -15,6 +16,8 @@ import {
   getLawFirmById, getUsersByLawFirm, getUserById, getMatterById,
   getDocumentById, getBrandingSettings, upsertBrandingSettings,
   updateUserRoleInLawFirm, getDb,
+  getInvitationsByLawFirm, getInvitationByTokenHash, createUserInvitation,
+  revokeUserInvitation, assignUserToLawFirm, markInvitationAccepted,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
@@ -84,7 +87,115 @@ export const appRouter = router({
       .query(({ input, ctx }) => getDashboardSummary(ctx.lawFirmId, input ?? {})),
   }),
 
+  invitations: router({
+    accept: protectedProcedure.input(z.object({ token: z.string().regex(/^[a-f0-9]{64}$/i) })).mutation(async ({ input, ctx }) => {
+      if (!ctx.user.email) throw new TRPCError({ code: "BAD_REQUEST", message: "Authenticated email is required" });
+      const tokenHash = createHash("sha256").update(input.token).digest("hex");
+      const invitation = await getInvitationByTokenHash(tokenHash);
+      if (!invitation || invitation.status !== "pending") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Invitation is invalid or no longer active" });
+      }
+      if (invitation.expiresAt.getTime() <= Date.now()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invitation has expired" });
+      }
+      if (ctx.user.lawFirmId) {
+        throw new TRPCError({ code: "CONFLICT", message: "User is already assigned to a law firm" });
+      }
+      if (ctx.user.email.trim().toLowerCase() !== invitation.invitedEmail) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Invitation email does not match the authenticated account" });
+      }
+      const joined = await assignUserToLawFirm(ctx.user.id, invitation.lawFirmId, invitation.role);
+      if (!joined || joined.lawFirmId !== invitation.lawFirmId) {
+        throw new TRPCError({ code: "CONFLICT", message: "Invitation could not be accepted" });
+      }
+      await markInvitationAccepted(invitation.id, ctx.user.id);
+      await logActivity({
+        firmId: invitation.lawFirmId,
+        userId: ctx.user.id,
+        actionType: "update",
+        entityType: "user_invitation",
+        entityId: invitation.id,
+        entityName: invitation.invitedEmail,
+        changes: { after: { status: "accepted", userId: ctx.user.id, role: invitation.role } },
+        ipAddress: ctx.req.headers["x-forwarded-for"] as string || undefined,
+      });
+      return { success: true, lawFirmId: invitation.lawFirmId, role: invitation.role } as const;
+    }),
+  }),
+
   admin: router({
+    invitations: router({
+      list: adminLawFirmProcedure.query(async ({ ctx }) => {
+        const invitations = await getInvitationsByLawFirm(ctx.lawFirmId);
+        return invitations.map(invitation => ({
+          id: invitation.id,
+          invitedEmail: invitation.invitedEmail,
+          role: invitation.role,
+          status: invitation.status === "pending" && invitation.expiresAt.getTime() <= Date.now() ? "expired" as const : invitation.status,
+          expiresAt: invitation.expiresAt,
+          createdAt: invitation.createdAt,
+        }));
+      }),
+      create: adminLawFirmProcedure.input(z.object({
+        invitedEmail: z.string().trim().toLowerCase().email(),
+        role: z.enum(["admin", "manager", "lawyer", "accountant", "user"]),
+      })).mutation(async ({ input, ctx }) => {
+        if (ctx.user.role === "manager" && (input.role === "admin" || input.role === "manager")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Managers cannot invite administrative roles" });
+        }
+        const existing = await getInvitationsByLawFirm(ctx.lawFirmId);
+        const duplicate = existing.find(invitation => invitation.status === "pending" && invitation.invitedEmail === input.invitedEmail && invitation.expiresAt.getTime() > Date.now());
+        if (duplicate) throw new TRPCError({ code: "CONFLICT", message: "An active invitation already exists for this email" });
+
+        const token = randomBytes(32).toString("hex");
+        const invitation = await createUserInvitation({
+          lawFirmId: ctx.lawFirmId,
+          invitedEmail: input.invitedEmail,
+          role: input.role,
+          tokenHash: createHash("sha256").update(token).digest("hex"),
+          invitedById: ctx.user.id,
+          status: "pending",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        });
+        await logActivity({
+          firmId: ctx.lawFirmId,
+          userId: ctx.user.id,
+          actionType: "create",
+          entityType: "user_invitation",
+          entityId: invitation.id,
+          entityName: invitation.invitedEmail,
+          changes: { after: { invitedEmail: invitation.invitedEmail, role: invitation.role, expiresAt: invitation.expiresAt } },
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string || undefined,
+        });
+        return {
+          id: invitation.id,
+          invitedEmail: invitation.invitedEmail,
+          role: invitation.role,
+          expiresAt: invitation.expiresAt,
+          token,
+          invitePath: `/invite/${token}`,
+        } as const;
+      }),
+      revoke: adminLawFirmProcedure.input(z.object({ invitationId: z.number().int().positive() })).mutation(async ({ input, ctx }) => {
+        const invitations = await getInvitationsByLawFirm(ctx.lawFirmId);
+        const invitation = invitations.find(item => item.id === input.invitationId);
+        if (!invitation) throw new TRPCError({ code: "NOT_FOUND" });
+        if (invitation.status !== "pending") throw new TRPCError({ code: "CONFLICT", message: "Only pending invitations can be revoked" });
+        await revokeUserInvitation(ctx.lawFirmId, input.invitationId);
+        await logActivity({
+          firmId: ctx.lawFirmId,
+          userId: ctx.user.id,
+          actionType: "delete",
+          entityType: "user_invitation",
+          entityId: invitation.id,
+          entityName: invitation.invitedEmail,
+          changes: { before: { status: invitation.status }, after: { status: "revoked" } },
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string || undefined,
+        });
+        return { success: true } as const;
+      }),
+    }),
+
     users: router({
       list: adminLawFirmProcedure.query(async ({ ctx }) => {
         const users = await getUsersByLawFirm(ctx.lawFirmId);

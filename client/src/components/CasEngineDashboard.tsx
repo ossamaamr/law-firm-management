@@ -72,6 +72,28 @@ export const CasEngineDashboard: React.FC = () => {
     },
     onError: error => toast.error(error.message || (language === 'ar' ? 'تعذر تحديث الدور' : 'Unable to update role')),
   });
+  const invitationsQuery = trpc.admin.invitations.list.useQuery(undefined, {
+    enabled: Boolean(user?.lawFirmId && canManageAdmin),
+  });
+  const [invitedEmail, setInvitedEmail] = useState('');
+  const [invitedRole, setInvitedRole] = useState<'admin' | 'manager' | 'lawyer' | 'accountant' | 'user'>('user');
+  const [generatedInvitePath, setGeneratedInvitePath] = useState<string | null>(null);
+  const createInvitationMutation = trpc.admin.invitations.create.useMutation({
+    onSuccess: async result => {
+      setGeneratedInvitePath(result.invitePath);
+      setInvitedEmail('');
+      await invitationsQuery.refetch();
+      toast.success(language === 'ar' ? 'تم إنشاء الدعوة. انسخ الرابط الآن.' : 'Invitation created. Copy the link now.');
+    },
+    onError: error => toast.error(error.message || (language === 'ar' ? 'تعذر إنشاء الدعوة' : 'Unable to create invitation')),
+  });
+  const revokeInvitationMutation = trpc.admin.invitations.revoke.useMutation({
+    onSuccess: async () => {
+      await invitationsQuery.refetch();
+      toast.success(language === 'ar' ? 'تم إلغاء الدعوة' : 'Invitation revoked');
+    },
+    onError: error => toast.error(error.message || (language === 'ar' ? 'تعذر إلغاء الدعوة' : 'Unable to revoke invitation')),
+  });
   const brandingMutation = trpc.branding.update.useMutation({
     onSuccess: async () => {
       await brandingQuery.refetch();
@@ -643,6 +665,86 @@ export const CasEngineDashboard: React.FC = () => {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">{language === 'ar' ? 'لا يوجد مستخدمون مرتبطون بالمكتب.' : 'No users are assigned to this firm.'}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="xl:col-span-2">
+                <CardHeader>
+                  <CardTitle>{language === 'ar' ? 'دعوات الانضمام إلى المكتب' : 'Firm invitations'}</CardTitle>
+                  <CardDescription>{language === 'ar' ? 'أنشئ دعوة لمستخدم جديد. يظهر الرمز الخام مرة واحدة فقط ولا يُخزّن في النظام.' : 'Create an invitation for a new user. The raw token is shown once and never stored.'}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <form
+                    className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto]"
+                    onSubmit={event => {
+                      event.preventDefault();
+                      if (!invitedEmail.trim()) return;
+                      createInvitationMutation.mutate({ invitedEmail, role: invitedRole });
+                    }}
+                  >
+                    <Input
+                      type="email"
+                      value={invitedEmail}
+                      onChange={event => setInvitedEmail(event.target.value)}
+                      placeholder={language === 'ar' ? 'البريد الإلكتروني للمدعو' : 'Invitee email'}
+                      required
+                      dir="ltr"
+                    />
+                    <select
+                      className="h-10 rounded-md border bg-background px-3 text-sm"
+                      value={invitedRole}
+                      onChange={event => setInvitedRole(event.target.value as typeof invitedRole)}
+                      disabled={createInvitationMutation.isPending}
+                    >
+                      {(['admin', 'manager', 'lawyer', 'accountant', 'user'] as const).map(role => (
+                        <option key={role} value={role} disabled={user?.role === 'manager' && (role === 'admin' || role === 'manager')}>
+                          {language === 'ar' ? ({ admin: 'مسؤول', manager: 'مدير', lawyer: 'محامٍ', accountant: 'محاسب', user: 'مستخدم' }[role]) : role}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="submit" disabled={createInvitationMutation.isPending}>
+                      {createInvitationMutation.isPending ? (language === 'ar' ? 'جارٍ الإنشاء…' : 'Creating…') : (language === 'ar' ? 'إنشاء دعوة' : 'Create invitation')}
+                    </Button>
+                  </form>
+                  {generatedInvitePath && (
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+                      <p className="text-sm font-medium">{language === 'ar' ? 'رابط الدعوة — انسخه الآن' : 'Invitation link — copy it now'}</p>
+                      <code className="block break-all rounded bg-background p-2 text-xs" dir="ltr">{`${window.location.origin}${generatedInvitePath}`}</code>
+                      <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard?.writeText(`${window.location.origin}${generatedInvitePath}`)}>
+                        {language === 'ar' ? 'نسخ الرابط' : 'Copy link'}
+                      </Button>
+                    </div>
+                  )}
+                  {invitationsQuery.data?.length ? (
+                    <div className="overflow-x-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground"><tr>
+                          <th className="p-3 text-start font-medium">{language === 'ar' ? 'البريد' : 'Email'}</th>
+                          <th className="p-3 text-start font-medium">{language === 'ar' ? 'الدور' : 'Role'}</th>
+                          <th className="p-3 text-start font-medium">{language === 'ar' ? 'الحالة' : 'Status'}</th>
+                          <th className="p-3 text-start font-medium">{language === 'ar' ? 'الإجراء' : 'Action'}</th>
+                        </tr></thead>
+                        <tbody>
+                          {invitationsQuery.data.map(invitation => (
+                            <tr key={invitation.id} className="border-t">
+                              <td className="p-3" dir="ltr">{invitation.invitedEmail}</td>
+                              <td className="p-3">{invitation.role}</td>
+                              <td className="p-3"><Badge variant={invitation.status === 'pending' ? 'secondary' : 'outline'}>{invitation.status}</Badge></td>
+                              <td className="p-3">
+                                {invitation.status === 'pending' && (
+                                  <Button type="button" variant="ghost" size="sm" disabled={revokeInvitationMutation.isPending} onClick={() => revokeInvitationMutation.mutate({ invitationId: invitation.id })}>
+                                    {language === 'ar' ? 'إلغاء' : 'Revoke'}
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{language === 'ar' ? 'لا توجد دعوات حالية.' : 'No invitations yet.'}</p>
                   )}
                 </CardContent>
               </Card>

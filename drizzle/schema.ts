@@ -58,6 +58,29 @@ export type BrandingSettings = typeof brandingSettings.$inferSelect;
 export type InsertBrandingSettings = typeof brandingSettings.$inferInsert;
 
 /**
+ * User invitations - دعوات الانضمام إلى المكتب
+ * Only a hash of the one-time token is persisted.
+ */
+export const userInvitations = mysqlTable("userInvitations", {
+  id: int("id").autoincrement().primaryKey(),
+  lawFirmId: int("lawFirmId").notNull(),
+  invitedEmail: varchar("invitedEmail", { length: 320 }).notNull(),
+  role: mysqlEnum("role", ["admin", "manager", "lawyer", "accountant", "user"]).default("user").notNull(),
+  tokenHash: varchar("tokenHash", { length: 128 }).notNull().unique(),
+  invitedById: int("invitedById").notNull(),
+  acceptedById: int("acceptedById"),
+  status: mysqlEnum("status", ["pending", "accepted", "revoked"]).default("pending").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  acceptedAt: timestamp("acceptedAt"),
+  revokedAt: timestamp("revokedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserInvitation = typeof userInvitations.$inferSelect;
+export type InsertUserInvitation = typeof userInvitations.$inferInsert;
+
+/**
  * Clients table - العملاء (الموكلين)
  */
 export const clients = mysqlTable("clients", {
