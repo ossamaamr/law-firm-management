@@ -6,6 +6,7 @@ import {
   MAX_DOCUMENT_BYTES,
   toSafeDocumentMetadata,
   validateDocumentUploadMetadata,
+  validateUploadedFileContent,
 } from "./document-security";
 
 function context(user: TrpcContext["user"]): TrpcContext {
@@ -61,6 +62,12 @@ describe("Document security contract", () => {
     });
     expect(safe).not.toHaveProperty("s3Key");
     expect(safe).not.toHaveProperty("s3Url");
+  });
+
+  it("validates file signatures instead of trusting MIME metadata", () => {
+    expect(() => validateUploadedFileContent("application/pdf", Buffer.from("%PDF-1.7"))).not.toThrow();
+    expect(() => validateUploadedFileContent("image/png", Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).not.toThrow();
+    expect(() => validateUploadedFileContent("application/pdf", Buffer.from("not a pdf"))).toThrow();
   });
 
   it("enforces the server-side size and MIME contract", () => {

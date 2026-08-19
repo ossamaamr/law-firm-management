@@ -25,6 +25,19 @@ export function validateDocumentUploadMetadata(input: z.infer<typeof documentUpl
   return parsed;
 }
 
+export function validateUploadedFileContent(fileType: string, buffer: Buffer) {
+  const type = fileType.toLowerCase();
+  const matches =
+    (type === "application/pdf" && buffer.subarray(0, 5).toString("ascii") === "%PDF-") ||
+    (type === "image/png" && buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) ||
+    (type === "image/jpeg" && buffer.subarray(0, 2).equals(Buffer.from([255, 216]))) ||
+    (type === "image/webp" && buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP") ||
+    (type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" && buffer.subarray(0, 2).toString("ascii") === "PK") ||
+    (type === "text/plain" && !buffer.includes(0));
+  if (!matches) throw new Error("File content does not match the declared MIME type");
+  return true;
+}
+
 export function toSafeDocumentMetadata(document: {
   id: number;
   caseId: number | null;
