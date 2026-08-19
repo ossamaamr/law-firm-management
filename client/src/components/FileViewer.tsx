@@ -267,6 +267,10 @@ interface FileUploadProps {
   accept?: string;
   maxSize?: number;
   disabled?: boolean;
+  uploadUrl?: string;
+  uploadFields?: Record<string, string>;
+  onUploadComplete?: (response: unknown) => void;
+  onUploadError?: (message: string) => void;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
@@ -274,8 +278,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx',
   maxSize = 10 * 1024 * 1024, // 10MB
   disabled = false,
+  uploadUrl,
+  uploadFields = {},
+  onUploadComplete,
+  onUploadError,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadComplete, setUploadComplete] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -297,12 +309,56 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
+  const uploadFile = (file: File) => {
+    if (!uploadUrl) return;
+    setUploading(true);
+    setUploadProgress(0);
+    setUploadError(null);
+    setUploadComplete(false);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    Object.entries(uploadFields).forEach(([key, value]) => formData.append(key, value));
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", uploadUrl, true);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      setUploading(false);
+      let response: unknown = null;
+      try { response = JSON.parse(xhr.responseText); } catch { response = null; }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadComplete(true);
+        onUploadComplete?.(response);
+      } else {
+        const message = typeof response === "object" && response !== null && "error" in response
+          ? String((response as { error?: unknown }).error ?? "فشل رفع الملف")
+          : "فشل رفع الملف";
+        setUploadError(message);
+        onUploadError?.(message);
+      }
+    };
+    xhr.onerror = () => {
+      setUploading(false);
+      setUploadError("تعذر الاتصال بالخادم أثناء رفع الملف");
+      onUploadError?.("تعذر الاتصال بالخادم أثناء رفع الملف");
+    };
+    xhr.send(formData);
+  };
+
   const handleFile = (file: File) => {
+    setUploadError(null);
+    setUploadComplete(false);
     if (file.size > maxSize) {
-      alert(`حجم الملف يتجاوز الحد الأقصى المسموح (${maxSize / 1024 / 1024}MB)`);
+      const message = `حجم الملف يتجاوز الحد الأقصى المسموح (${maxSize / 1024 / 1024}MB)`;
+      setUploadError(message);
+      onUploadError?.(message);
       return;
     }
     onFileSelect(file);
+    uploadFile(file);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -317,18 +373,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         isDragging
           ? 'border-blue-500 bg-blue-50'
           : 'border-gray-300 bg-gray-50 hover:border-gray-400'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      } ${disabled || uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      onClick={() => !disabled && fileInputRef.current?.click()}
+      onClick={() => !disabled && !uploading && fileInputRef.current?.click()}
     >
       <input
         ref={fileInputRef}
         type="file"
         accept={accept}
         onChange={handleFileInput}
-        disabled={disabled}
+        disabled={disabled || uploading}
         className="hidden"
       />
 
@@ -339,6 +395,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       <p className="text-sm text-gray-500">
         الملفات المدعومة: PDF, صور, مستندات (Max {maxSize / 1024 / 1024}MB)
       </p>
+      {uploading && <p className="text-sm text-blue-600 mt-2">جاري رفع الملف... {uploadProgress}%</p>}
+      {uploadComplete && <p className="text-sm text-green-600 mt-2">تم رفع الملف بنجاح.</p>}
+      {uploadError && <p role="alert" className="text-sm text-red-600 mt-2">{uploadError}</p>}
     </div>
   );
 };
