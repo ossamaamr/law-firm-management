@@ -620,3 +620,13 @@
 رُبط إنشاء القضية عبر `createCaseWithAudit`؛ حيث تُدرج القضية وoutbox event في transaction MySQL واحدة، فلا يمكن نجاح إنشاء القضية دون إنشاء أثر تدقيق دائم. نجحت بوابات القسم: `pnpm check`، و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا**، و`pnpm build`، و`git diff --check`.
 
 هذا لا يغلق F-008 بالكامل؛ ما زالت mutations الحساسة الأخرى تحتاج استخدام transaction helper نفسه، كما أن تشغيل drain في بيئة متعددة النسخ يحتاج scheduler/worker تشغيليًا ومراقبة، ويجب تطبيق migration واختبارها على MySQL حقيقية قبل أي release sign-off. لذلك يبقى التصنيف `NOT READY`.
+
+## 28. القسم الخامس والأخير — اختبارات التكامل والجاهزية للإنتاج — 2026-08-19
+
+أُضيف شرط configuration إلى `/health/ready`: في production لا تعيد الخدمة `ready` إلا إذا كانت إعدادات الإنتاج المطلوبة مكتملة، مع استمرار عدم كشف قيم الأسرار أو تفاصيل الاتصال. بقي `/health/live` مستقلًا عن قاعدة البيانات لاستخدامه في liveness probes.
+
+وُسع `docs/MERSAD_DB_PREFLIGHT.sql` ليغطي orphan وcross-tenant checks للمطالبات والفواتير والledger وسجلات التدقيق و`auditOutbox`، وليوثق migrations `0014` و`0015` و`0016` والتحقق من `information_schema`. أضيف `docs/MERSAD_PRODUCTION_READINESS.md` كسجل قبول نهائي يوضح الأوامر والنتائج والقيود.
+
+نجحت بوابات `pnpm check` و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا** و`pnpm build` و`git diff --check` و`pnpm drizzle-kit check`. فشل `pnpm audit --audit-level=high` مع **6 High advisories**، وفشل `mysqladmin ping` لعدم وجود خادم MySQL في بيئة التنفيذ؛ لذلك لم تُطبق migrations ولم تُشغل اختبارات التكامل الثلاثون المعتمدة على `DATABASE_URL`.
+
+القرار النهائي الصادق: **MERSAD BETA READY — NOT PRODUCTION READY**. لا يجوز تغيير القرار قبل تشغيل MySQL حقيقية، تنفيذ preflight بنتائج صفرية، تطبيق migrations واختبار restore، تشغيل الاختبارات المتخطية، معالجة advisories عالية الخطورة، وإثبات تشغيل outbox worker متعدد النسخ واختبار اختراق مستقل.

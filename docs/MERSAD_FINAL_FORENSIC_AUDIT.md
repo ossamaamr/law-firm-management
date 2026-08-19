@@ -206,7 +206,15 @@ JWT session مدته سنة (`ONE_YEAR_MS`). توجد revocation بـ`jti`، ل�
 
 أُضيف `auditOutbox` في migration `drizzle/0016_audit_outbox.sql` مع حالات معالجة وbackoff وeventKey فريد، وأصبح `logActivity` يكتب outbox بدل إسقاط سجل النشاط مباشرة. يكتب `drainAuditOutbox` إسقاطات activity/audit داخل transaction ويمنع التكرار عبر uniqueness، بينما يستخدم `createCaseWithAudit` transaction واحدة لإنشاء القضية وحدث التدقيق. أثبتت البوابات **154 اختبارًا ناجحًا و30 متخطيًا** ونجاح check/build/diff check. لا تثبت هذه النتائج تطبيق MySQL أو تشغيل worker متعدد النسخ.
 
-## 11. بوابة إطلاق إلزامية
+## 11. نتيجة القسم الخامس — Production Readiness
+
+أُضيف configuration gate إلى `/health/ready` بحيث لا تعيد الخدمة `ready` في production دون إعدادات الإنتاج المطلوبة، مع بقاء `/health/live` مناسبًا لفحص liveness فقط. وُسع `docs/MERSAD_DB_PREFLIGHT.sql` ليشمل العزل المالي والتدقيقي و`auditOutbox` وmigrations 0014–0016، وأضيف سجل القبول `docs/MERSAD_PRODUCTION_READINESS.md`.
+
+اجتازت البوابات النهائية `pnpm check` و`pnpm test` بنتيجة **154 ناجحًا و30 متخطيًا** و`pnpm build` و`git diff --check` و`pnpm drizzle-kit check`. فشل `pnpm audit --audit-level=high` مع 6 High advisories، كما فشل `mysqladmin ping` لعدم وجود خادم MySQL محلي؛ لذلك لم تُطبق migrations ولم تُشغل اختبارات التكامل الثلاثون المرتبطة بـ`DATABASE_URL`.
+
+القرار النهائي: **BETA READY — NOT PRODUCTION READY**. لا يسمح هذا التقرير بإطلاق المنصة على بيانات محامين أو عملاء حقيقية قبل تشغيل MySQL فعلية، تنفيذ preflight بنتائج صفرية، تطبيق migrations واختبار restore، تشغيل الاختبارات المتخطية، معالجة High advisories، إثبات outbox worker متعدد النسخ، وإجراء اختبار اختراق مستقل.
+
+## 12. بوابة إطلاق إلزامية
 
 لا يجوز تغيير التصنيف إلى `RELEASE CANDIDATE` قبل تحقق كل ما يلي: إضافة CSRF/Origin defenses واختبارات browser؛ state/nonce OAuth؛ policy matrix لكل role؛ تقييد Activity export؛ durable audit/outbox؛ DB preflight وmigrations على MySQL؛ FKs المالية؛ إزالة localStorage user cache؛ معالجة High advisories أو اعتماد mitigations رسميًا؛ تشغيل restore drill؛ ومراجعة security headers/rate limiting/session TTL.
 
