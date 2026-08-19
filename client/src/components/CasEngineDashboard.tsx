@@ -497,14 +497,14 @@ export const CasEngineDashboard: React.FC = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>{t('cases')}</CardTitle>
-                  <Button className="gap-2">
+                  <Button className="gap-2" onClick={() => { window.location.href = '/cases'; }}>
                     <Plus className="w-4 h-4" />
                     {t('addNew')}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-500 dark:text-gray-400">{t('comingSoon')}</p>
+                <p className="text-gray-500 dark:text-gray-400">{language === 'ar' ? 'افتح صفحة القضايا لإدارة البيانات الفعلية.' : 'Open the Cases page to manage live data.'}</p>
               </CardContent>
             </Card>
           )}
@@ -514,14 +514,14 @@ export const CasEngineDashboard: React.FC = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>{t('clients')}</CardTitle>
-                  <Button className="gap-2">
+                  <Button className="gap-2" onClick={() => { window.location.href = '/clients'; }}>
                     <Plus className="w-4 h-4" />
                     {t('addNew')}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-500 dark:text-gray-400">{t('comingSoon')}</p>
+                <p className="text-gray-500 dark:text-gray-400">{language === 'ar' ? 'افتح صفحة العملاء لإدارة البيانات الفعلية.' : 'Open the Clients page to manage live data.'}</p>
               </CardContent>
             </Card>
           )}
@@ -531,14 +531,10 @@ export const CasEngineDashboard: React.FC = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>{t('invoices')}</CardTitle>
-                  <Button className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    {t('addNew')}
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-500 dark:text-gray-400">{t('comingSoon')}</p>
+                <p className="text-gray-500 dark:text-gray-400">{language === 'ar' ? 'الفوترة غير متاحة حتى اعتماد دفتر مالي حقيقي.' : 'Billing is unavailable until a real auditable ledger is approved.'}</p>
               </CardContent>
             </Card>
           )}

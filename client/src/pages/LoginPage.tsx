@@ -245,9 +245,9 @@ export default function LoginPage() {
                     <input type="checkbox" className="w-4 h-4" />
                     <span>{t.rememberMe}</span>
                   </label>
-                  <a href="#" className="text-blue-600 hover:text-blue-800">
+                  <span className="text-gray-400" title={isArabic ? "استعادة كلمة المرور متاحة عبر مزود الهوية" : "Password recovery is handled by the identity provider"}>
                     {t.forgotPassword}
-                  </a>
+                  </span>
                 </div>
 
                 {/* Login Button */}
@@ -269,7 +269,7 @@ export default function LoginPage() {
                 {/* Signup Link */}
                 <div className="text-center text-sm">
                   <span className="text-gray-600">{isArabic ? "ليس لديك حساب؟ " : "Don't have an account? "}</span>
-                  <a href="/signup" className="text-blue-600 hover:text-blue-800 font-semibold">
+                  <a href="/join" className="text-blue-600 hover:text-blue-800 font-semibold">
                     {t.signup}
                   </a>
                 </div>

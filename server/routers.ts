@@ -8,12 +8,12 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
   getCasesByLawFirm, getCaseById, createCase, updateCase, softDeleteCase,
-  getClientsByLawFirm, getClientById, createClient, updateClientInLawFirm,
+  getClientsByLawFirm, getClientById, createClient, updateClientInLawFirm, deleteClientInLawFirm,
   getSessionsByCaseId, getUpcomingSessions, createCourtSession,
   getDocumentsByCaseId, createDocument, deleteDocument,
   getUserNotifications, createNotification, markNotificationAsRead,
   getAuditLogsByCaseId, createAuditLog,
-  getLawFirmById, getUsersByLawFirm, getUserById, getMatterById,
+  getLawFirmById, getUsersByLawFirm, getUserById, getMatterById, getMattersByLawFirm,
   getDocumentById, getBrandingSettings, upsertBrandingSettings,
   updateUserRoleInLawFirm, getDb,
   getInvitationsByLawFirm, getInvitationByTokenHash, createUserInvitation,
@@ -449,6 +449,22 @@ export const appRouter = router({
     }),
   }),
 
+  // ============ MATTERS AND MEMBERS SELECTORS ============
+  matters: router({
+    list: lawFirmProcedure.query(async ({ ctx }) => {
+      const rows = await getMattersByLawFirm(ctx.lawFirmId);
+      return rows.filter((matter) => matter.status !== "archived");
+    }),
+  }),
+  members: router({
+    list: lawFirmProcedure.query(async ({ ctx }) => {
+      const rows = await getUsersByLawFirm(ctx.lawFirmId);
+      return rows
+        .filter((member) => member.role === "admin" || member.role === "manager" || member.role === "lawyer")
+        .map(({ id, name, role }) => ({ id, name, role }));
+    }),
+  }),
+
   // ============ CASES ROUTER ============
   cases: router({
     list: lawFirmProcedure.input(z.object({
@@ -663,6 +679,23 @@ export const appRouter = router({
       });
     }),
 
+    delete: lawFirmProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
+      const current = await getClientById(input);
+      if (!current || current.lawFirmId !== ctx.lawFirmId) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      const deleted = await deleteClientInLawFirm(input, ctx.lawFirmId);
+      if (!deleted) throw new TRPCError({ code: "NOT_FOUND" });
+      await logActivity({
+        firmId: ctx.lawFirmId,
+        userId: ctx.user.id,
+        actionType: "delete",
+        entityType: "client",
+        entityId: input,
+        entityName: current.name,
+      });
+      return { success: true } as const;
+    }),
     update: lawFirmProcedure.input(z.object({
       id: z.number().int().positive(),
       name: z.string().min(1).optional(),

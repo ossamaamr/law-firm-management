@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, json, unique, index } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, json, unique, index, foreignKey } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
 /**
@@ -322,6 +322,11 @@ export const documents = mysqlTable("documents", {
   lawFirmMatterIdx: index("documents_lawFirm_matter_idx").on(table.lawFirmId, table.matterId),
   caseVersionIdx: index("documents_case_version_idx").on(table.lawFirmId, table.caseId, table.version),
   scanStatusIdx: index("documents_scan_status_idx").on(table.lawFirmId, table.scanStatus),
+  previousVersionFk: foreignKey({
+    columns: [table.previousVersionId],
+    foreignColumns: [table.id],
+    name: "documents_previousVersionId_fk",
+  }).onDelete("set null").onUpdate("cascade"),
 }));
 
 export type Document = typeof documents.$inferSelect;

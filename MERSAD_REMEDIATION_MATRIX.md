@@ -47,3 +47,17 @@
 ## قاعدة القرار
 
 ستُعالج البنود P0 ثم P1. البنود المعتمدة على مزود خارجي أو قرار منتج ستبقى `BLOCKED` فقط إذا كان السبب حقيقيًا ومذكورًا في التقرير. بعد كل milestone ستُشغّل بوابات typecheck وtest وbuild وdiff/security checks.
+
+
+## Findings إضافية من Final Release Audit — 2026-08-19
+
+| ID | Severity | Category | Finding | Location | Evidence/Test | Remaining risk | Current status |
+|---|---|---|---|---|---|---|---|
+| P1-012 | P1 | CORE WORKFLOW | واجهة إنشاء القضية كانت ترسل `clientId: 1` و`matterId: 1` و`lawyerId: 1` | `client/src/pages/Cases.tsx` | selectors حقيقية من `clients.list` و`matters.list` و`members.list`، وserver-side ownership checks، `pnpm check/test/build` | لا توجد اختبارات browser كاملة | VERIFIED |
+| P1-013 | P1 | CORE WORKFLOW | صفحة العملاء كانت تعرض mock data وتطبع نجاحًا دون API | `client/src/pages/ClientsPage.tsx` | API list/create/update/delete tenant-scoped، حذف مع activity audit، `pnpm check/test/build` | لا توجد اختبارات browser كاملة | VERIFIED |
+| P2-007 | P2 | PRODUCT CORRECTNESS | صفحات demo غير الموصولة تضمنت mock data وSignup وهميًا | `ReportsPage`, `MattersPage`, `InvoicesPage`, `SignupPage` | إثبات عدم وجود routes/imports ثم إزالة الملفات، وتوجيه `/signup` إلى `/join` | تحتاج إعادة بناء هذه الوحدات إذا اعتمدها المنتج لاحقًا | VERIFIED removal |
+| P2-008 | P2 | DEPENDENCY SECURITY | dependency audit ما زال يبلغ high advisories في rollup/path-to-regexp/lodash وبعض dev-only paths | `pnpm-lock.yaml`, dependency tree | `pnpm audit --audit-level=critical` ناجح بلا critical؛ `pnpm audit --audit-level=high` يظل environment/upstream blocked | يلزم تحديثات upstream أو ترقية Recharts/Express بعقد توافق | BLOCKED upstream; لا إعلان Production Ready |
+
+## إعادة احتساب Final Release Audit
+
+عدد findings القابلة للعد بعد التدقيق المستقل: **28**. منها **26 VERIFIED/IMPLEMENTED أو BLOCKED بشكل موثق**، و0 PARTIAL/IN PROGRESS، و2 REMAINING/NOT STARTED (P3-001 AI وديون الإصدار المرتبطة بالبنية الخارجية). النسبة الحسابية الداخلية **26 / 28 = 92.86%**، لكنها ليست حكم جاهزية إنتاج.

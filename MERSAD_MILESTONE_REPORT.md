@@ -471,3 +471,37 @@
 ## حالة Git النهائية
 
 تم إنشاء commit محلي نهائي بالمعرّف `a77e2229` بعنوان `feat: complete mersad final remediation gate`. حاولت مزامنته مع `origin/main`، لكن GitHub رفض الدفع لأن commit يتضمن `.github/workflows/quality.yml` ويتطلب token صلاحية `workflows`، وهي غير متاحة حاليًا. لم يتم تجاوز الحماية، ولم يُنفذ نشر للتطبيق. يلزم منح صلاحية workflow المناسبة أو دفع commit يدويًا من حساب يملكها.
+
+
+## Final Release Audit مستقل — 19 أغسطس 2026
+
+أُجري تدقيق إصدار مستقل على السطح المشحون فعليًا، مع مراجعة routing، مسارات Cases وClients، عزل المستأجرين، دورة المستندات، migrations، dependencies، وبيانات mock. لم يُعتبر الرقم الحسابي وحده دليل جاهزية.
+
+### إصلاحات هذا التدقيق
+
+أزيلت IDs الثابتة من واجهة إنشاء القضية (`clientId: 1`, `matterId: 1`, `lawyerId: 1`). أضيفت selectors حقيقية tenant-scoped من `clients.list` و`matters.list` و`members.list`، مع استمرار فحص ملكية العميل والملف والمحامي في الخادم قبل الإنشاء.
+
+أزيلت بيانات العملاء الوهمية وربطت صفحة `/clients` بعمليات list/create/update/delete الفعلية. أضيف حذف tenant-scoped مع Activity Log، وأصبحت الحقول nullable تُعرض بأمان بدل افتراض بيانات مكتملة. كما أزيلت بطاقات `comingSoon` المضللة في Dashboard للمسارات التي يمكن فتحها فعليًا، وأصبح قسم الفوترة يصرّح بعدم توفر دفتر مالي حقيقي.
+
+أزيلت صفحات demo غير الموصولة `ReportsPage` و`MattersPage` و`InvoicesPage` و`SignupPage` بعد إثبات عدم وجود imports أو routes لها. وُجّه رابط التسجيل في Login إلى `/join` بدل `/signup`، وأزيل رابط Forgot Password الوهمي واستُبدل بتوضيح أن الاستعادة تتم عبر مزود الهوية.
+
+أضيف FK ذاتي معلن إلى `documents.previousVersionId` عبر table-level Drizzle `foreignKey`، وأُنشئت migration مستقلة `0010_document_previous_version_fk.sql` مع تحديث journal. كما تم رفع tRPC إلى `11.18.0`، وDrizzle ORM إلى `0.45.2`، وAxios إلى `1.19.0`، وAWS SDK إلى `3.1113.0`، وTailwind إلى `4.3.3`، وVitest إلى `3.2.7`، وPostCSS إلى `8.5.26`، وVite إلى `7.3.6`، وpnpm workspace hardening.
+
+### أدلة التحقق
+
+| الفحص | النتيجة |
+|---|---|
+| `pnpm check` | ناجح دون أخطاء TypeScript |
+| `pnpm test` | ناجح: 132 اختبارًا ناجحًا، و30 متخطيًا لأنها تتطلب `DATABASE_URL` |
+| `pnpm build` | ناجح، وVite اكتمل دون خطأ |
+| `git diff --check` | ناجح |
+| `pnpm audit --audit-level=critical` | ناجح؛ لا توجد Critical advisories متبقية في الفحص الحالي |
+| `pnpm audit --audit-level=high` | ما زالت High advisories محدودة، معظمها upstream/dev أو مسارات قديمة لا يمكن ترقيتها دون كسر عقد رئيسية؛ موثقة في P2-008 |
+
+### التصنيف النهائي
+
+> **BETA READY — NOT PRODUCTION READY**
+
+المنصة مناسبة لتجربة داخلية مضبوطة واختبارات قبول عربية/متعددة المستأجرين، لكنها لا تستحق تصنيف `PRODUCTION READY` أو `RELEASE CANDIDATE` بسبب بقاء scanner خارجي، restore drill إنتاجي، Client Portal وهوية العميل، دفتر مالي حقيقي، MFA، scheduler إنتاجي، اختبارات قاعدة البيانات المعزولة غير المشغلة في هذه البيئة، وHigh dependency advisories المتبقية.
+
+الحكم لا يمنع نجاح الوحدات الداخلية التي اجتازت البوابات، لكنه يمنع أي نشر أو ادعاء اكتمال تشغيلي للميزات المحظورة. لم يُنفذ نشر خارجي، ولم تُنشأ قاعدة إنتاجية، ولم تُخفَ نتائج audit السلبية.

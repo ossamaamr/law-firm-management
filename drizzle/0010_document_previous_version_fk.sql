@@ -1,0 +1,1 @@
+ALTER TABLE `documents` ADD CONSTRAINT `documents_previousVersionId_fk` FOREIGN KEY (`previousVersionId`) REFERENCES `documents`(`id`) ON DELETE set null ON UPDATE cascade;

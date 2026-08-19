@@ -37,35 +37,14 @@ export default function ClientsPage() {
     clientType: 'individual',
   });
 
-  // Mock data - replace with real API calls
-  const clients = [
-    {
-      id: 1,
-      name: 'أحمد محمد',
-      email: 'ahmed@example.com',
-      phone: '+966501234567',
-      city: 'الرياض',
-      clientType: 'individual',
-      kycStatus: 'verified',
-      conflictStatus: 'clear',
-      createdAt: new Date('2024-01-15'),
-    },
-    {
-      id: 2,
-      name: 'شركة النور للتجارة',
-      email: 'info@alnoor.com',
-      phone: '+966112345678',
-      city: 'جدة',
-      clientType: 'company',
-      kycStatus: 'pending',
-      conflictStatus: 'clear',
-      createdAt: new Date('2024-02-10'),
-    },
-  ];
+  const { data: clients = [], isLoading, refetch } = trpc.clients.list.useQuery({ limit: 100, offset: 0 });
+  const createClientMutation = trpc.clients.create.useMutation({ onSuccess: () => { setIsDialogOpen(false); refetch(); } });
+  const updateClientMutation = trpc.clients.update.useMutation({ onSuccess: () => { setIsDialogOpen(false); refetch(); } });
+  const deleteClientMutation = trpc.clients.delete.useMutation({ onSuccess: () => refetch() });
 
   const filteredClients = clients.filter((client) => {
     const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         client.email.toLowerCase().includes(searchQuery.toLowerCase());
+                         (client.email ?? '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === 'all' || client.clientType === filterType;
     return matchesSearch && matchesType;
   });
@@ -88,8 +67,8 @@ export default function ClientsPage() {
     setEditingClient(client);
     setFormData({
       name: client.name,
-      email: client.email,
-      phone: client.phone,
+      email: client.email ?? '',
+      phone: client.phone ?? '',
       address: client.address || '',
       city: client.city,
       country: client.country || '',
@@ -99,19 +78,29 @@ export default function ClientsPage() {
   };
 
   const handleSaveClient = () => {
-    // TODO: Call API to save client
-    console.log('Saving client:', formData);
-    setIsDialogOpen(false);
+    if (!formData.name.trim()) return;
+    const input = {
+      name: formData.name.trim(),
+      email: formData.email.trim() || undefined,
+      phone: formData.phone.trim() || undefined,
+      address: formData.address.trim() || undefined,
+      city: formData.city.trim() || undefined,
+      clientType: formData.clientType,
+    };
+    if (editingClient) {
+      updateClientMutation.mutate({ id: editingClient.id, ...input });
+    } else {
+      createClientMutation.mutate(input);
+    }
   };
 
   const handleDeleteClient = (clientId: number) => {
-    // TODO: Call API to delete client
-    console.log('Deleting client:', clientId);
+    if (window.confirm('هل أنت متأكد من حذف العميل؟')) deleteClientMutation.mutate(clientId);
   };
 
   const getKYCBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      verified: 'default',
+      approved: 'default',
       pending: 'secondary',
       rejected: 'destructive',
     };
@@ -267,7 +256,7 @@ export default function ClientsPage() {
       <Card>
         <CardHeader>
           <CardTitle>
-            قائمة العملاء ({filteredClients.length})
+            قائمة العملاء ({isLoading ? '...' : filteredClients.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -289,16 +278,16 @@ export default function ClientsPage() {
                 {filteredClients.map((client) => (
                   <TableRow key={client.id}>
                     <TableCell className="font-medium">{client.name}</TableCell>
-                    <TableCell>{client.email}</TableCell>
-                    <TableCell>{client.phone}</TableCell>
-                    <TableCell>{client.city}</TableCell>
+                    <TableCell>{client.email ?? '—'}</TableCell>
+                    <TableCell>{client.phone ?? '—'}</TableCell>
+                    <TableCell>{client.city ?? '—'}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {client.clientType === 'individual' ? 'فرد' : 'شركة'}
                       </Badge>
                     </TableCell>
                     <TableCell>{getKYCBadge(client.kycStatus)}</TableCell>
-                    <TableCell>{getConflictBadge(client.conflictStatus)}</TableCell>
+                    <TableCell>{getConflictBadge(client.conflictCheckStatus)}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
@@ -367,7 +356,7 @@ export default function ClientsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600 dark:text-red-400">
-              {clients.filter((c) => c.conflictStatus === 'conflict').length}
+                  {clients.filter((c) => c.conflictCheckStatus === 'conflict').length}
             </div>
           </CardContent>
         </Card>

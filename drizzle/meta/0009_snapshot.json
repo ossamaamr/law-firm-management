@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "e10ef69b-23c4-42e0-bba5-aa2abe325eef",
-  "prevId": "1aec8aa0-47c6-49ed-a74e-d06a1585b6e5",
+  "id": "49e9b623-3400-4b39-91e4-6803fe94a597",
+  "prevId": "e10ef69b-23c4-42e0-bba5-aa2abe325eef",
   "tables": {
     "activityLogs": {
       "name": "activityLogs",
@@ -901,7 +901,21 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "documents_previousVersionId_fk": {
+          "name": "documents_previousVersionId_fk",
+          "tableFrom": "documents",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "previousVersionId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        }
+      },
       "compositePrimaryKeys": {
         "documents_id": {
           "name": "documents_id",

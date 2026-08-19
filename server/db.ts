@@ -414,6 +414,15 @@ export async function createClient(data: Omit<Client, 'id' | 'createdAt' | 'upda
   return client;
 }
 
+export async function deleteClientInLawFirm(id: number, lawFirmId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.delete(clients)
+    .where(and(eq(clients.id, id), eq(clients.lawFirmId, lawFirmId)));
+  const header = Array.isArray(result) ? result[0] : result;
+  return Number((header as { affectedRows?: unknown } | null | undefined)?.affectedRows) === 1;
+}
+
 export async function updateClientInLawFirm(
   id: number,
   lawFirmId: number,

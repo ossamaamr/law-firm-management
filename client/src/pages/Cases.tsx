@@ -46,12 +46,19 @@ export default function Cases() {
     oppositeParty: "",
     priority: "medium" as const,
     description: "",
+    clientId: "",
+    matterId: "",
+    lawyerId: "",
   });
 
   // Fetch cases list
   const { data: cases, isLoading, refetch } = trpc.cases.list.useQuery({
     status: statusFilter || undefined,
   });
+
+  const { data: clients } = trpc.clients.list.useQuery({ limit: 100, offset: 0 });
+  const { data: matters } = trpc.matters.list.useQuery();
+  const { data: members } = trpc.members.list.useQuery();
 
   // Create case mutation
   const createCaseMutation = trpc.cases.create.useMutation({
@@ -66,6 +73,9 @@ export default function Cases() {
         oppositeParty: "",
         priority: "medium",
         description: "",
+        clientId: "",
+        matterId: "",
+        lawyerId: "",
       });
       setIsDialogOpen(false);
       refetch();
@@ -80,6 +90,13 @@ export default function Cases() {
       toast.error(t("caseNumberAndTitleRequired"));
       return;
     }
+    const clientId = Number(formData.clientId);
+    const matterId = Number(formData.matterId);
+    const lawyerId = Number(formData.lawyerId);
+    if (![clientId, matterId, lawyerId].every((value) => Number.isInteger(value) && value > 0)) {
+      toast.error(isRTL ? "اختر العميل والملف والمحامي قبل الإنشاء" : "Select a client, matter, and lawyer before creating the case");
+      return;
+    }
 
     createCaseMutation.mutate({
       caseNumber: formData.caseNumber,
@@ -90,9 +107,9 @@ export default function Cases() {
       oppositeParty: formData.oppositeParty || undefined,
       priority: formData.priority,
       description: formData.description || undefined,
-      clientId: 1, // TODO: Get from user selection
-      lawyerId: 1, // TODO: Get from user selection
-      matterId: 1, // TODO: Get from user selection
+      clientId,
+      lawyerId,
+      matterId,
     });
   };
 
@@ -171,6 +188,27 @@ export default function Cases() {
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="mt-1"
                 />
+              </div>
+              <div>
+                <label className="text-sm font-medium">{isRTL ? "العميل" : "Client"}</label>
+                <select value={formData.clientId} onChange={(e) => setFormData({ ...formData, clientId: e.target.value })} className="mt-1 w-full rounded-md border p-2 bg-background">
+                  <option value="">{isRTL ? "اختر العميل" : "Select client"}</option>
+                  {(clients ?? []).map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">{isRTL ? "الملف القانوني" : "Matter"}</label>
+                <select value={formData.matterId} onChange={(e) => setFormData({ ...formData, matterId: e.target.value })} className="mt-1 w-full rounded-md border p-2 bg-background">
+                  <option value="">{isRTL ? "اختر الملف" : "Select matter"}</option>
+                  {(matters ?? []).map((matter) => <option key={matter.id} value={matter.id}>{matter.title} — {matter.matterNumber}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">{isRTL ? "المحامي المسؤول" : "Lead lawyer"}</label>
+                <select value={formData.lawyerId} onChange={(e) => setFormData({ ...formData, lawyerId: e.target.value })} className="mt-1 w-full rounded-md border p-2 bg-background">
+                  <option value="">{isRTL ? "اختر المحامي" : "Select lawyer"}</option>
+                  {(members ?? []).map((member) => <option key={member.id} value={member.id}>{member.name ?? member.role}</option>)}
+                </select>
               </div>
               <div>
                 <label className="text-sm font-medium">{t("caseType")}</label>
