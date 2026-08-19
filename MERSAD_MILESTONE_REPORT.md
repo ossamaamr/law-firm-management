@@ -521,3 +521,19 @@
 | Critical dependency audit | ناجح بلا Critical advisories |
 
 لم يتغير تصنيف الإصدار: **BETA READY — NOT PRODUCTION READY**. السبب ما زال يتضمن غياب Client Portal وهوية العميل، دفتر مالي حقيقي، MFA، scanner خارجي، scheduler وrestore drill الإنتاجيين، واختبارات MySQL الكاملة في بيئة معتمدة، إضافة إلى High advisories المتبقية.
+
+
+## إصلاح دستور MERSAD — قيود قاعدة البيانات الأساسية
+
+تمت معالجة جزء داخلي مهم من P1-008. أضيفت قيود FK في Drizzle للمسارات الأساسية: `clients.lawFirmId` إلى المكاتب، و`matters.lawFirmId/clientId/leadLawyerId` إلى المكتب والعميل والمستخدم، و`cases.lawFirmId/matterId` إلى المكتب والملف. أُنشئت migration مستقلة باسم `drizzle/0011_core_relationship_fks.sql` وسُجلت في journal دون تعديل migrations السابقة.
+
+تمنع هذه القيود إنشاء سجلات orphan على مستوى قاعدة البيانات بعد تطبيق migration، وتكمل فحوص الملكية الموجودة في الخادم. لم تُطبق migration على قاعدة خارجية؛ يلزم قبل التطبيق الإنتاجي تنفيذ preflight queries للتحقق من عدم وجود orphan rows ثم تشغيل migration على MySQL/MariaDB معتمد.
+
+| الفحص | النتيجة |
+|---|---|
+| `pnpm check` | ناجح |
+| `pnpm test` | ناجح: 134 اختبارًا ناجحًا و30 متخطيًا لغياب `DATABASE_URL` |
+| `pnpm build` | ناجح |
+| `git diff --check` | ناجح |
+
+حالة P1-008 أصبحت **IMPLEMENTED repository / production preflight pending**. لم تُرفع نسبة الجاهزية إلى Production Ready بسبب عدم توفر قاعدة اختبار معتمدة وعدم تنفيذ preflight أو تطبيق migration على بيئة خارجية.

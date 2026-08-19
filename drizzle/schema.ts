@@ -133,6 +133,7 @@ export const clients = mysqlTable("clients", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   lawFirmCreatedAtIdx: index("clients_lawFirm_createdAt_idx").on(table.lawFirmId, table.createdAt),
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "clients_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
 }));
 
 export type Client = typeof clients.$inferSelect;
@@ -182,7 +183,11 @@ export const matters = mysqlTable("matters", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "matters_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  clientFk: foreignKey({ columns: [table.clientId], foreignColumns: [clients.id], name: "matters_clientId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  leadLawyerFk: foreignKey({ columns: [table.leadLawyerId], foreignColumns: [users.id], name: "matters_leadLawyerId_fk" }).onDelete("restrict").onUpdate("cascade"),
+}));
 
 export type Matter = typeof matters.$inferSelect;
 export type InsertMatter = typeof matters.$inferInsert;
@@ -216,6 +221,8 @@ export const cases = mysqlTable("cases", {
 }, (table) => ({
   lawFirmCreatedAtIdx: index("cases_lawFirm_createdAt_idx").on(table.lawFirmId, table.createdAt),
   lawFirmStatusIdx: index("cases_lawFirm_status_idx").on(table.lawFirmId, table.status),
+  lawFirmFk: foreignKey({ columns: [table.lawFirmId], foreignColumns: [lawFirms.id], name: "cases_lawFirmId_fk" }).onDelete("restrict").onUpdate("cascade"),
+  matterFk: foreignKey({ columns: [table.matterId], foreignColumns: [matters.id], name: "cases_matterId_fk" }).onDelete("restrict").onUpdate("cascade"),
 }));
 
 export type Case = typeof cases.$inferSelect;

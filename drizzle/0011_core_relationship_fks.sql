@@ -1,0 +1,6 @@
+ALTER TABLE `cases` ADD CONSTRAINT `cases_lawFirmId_fk` FOREIGN KEY (`lawFirmId`) REFERENCES `lawFirms`(`id`) ON DELETE restrict ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE `cases` ADD CONSTRAINT `cases_matterId_fk` FOREIGN KEY (`matterId`) REFERENCES `matters`(`id`) ON DELETE restrict ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE `clients` ADD CONSTRAINT `clients_lawFirmId_fk` FOREIGN KEY (`lawFirmId`) REFERENCES `lawFirms`(`id`) ON DELETE restrict ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE `matters` ADD CONSTRAINT `matters_lawFirmId_fk` FOREIGN KEY (`lawFirmId`) REFERENCES `lawFirms`(`id`) ON DELETE restrict ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE `matters` ADD CONSTRAINT `matters_clientId_fk` FOREIGN KEY (`clientId`) REFERENCES `clients`(`id`) ON DELETE restrict ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE `matters` ADD CONSTRAINT `matters_leadLawyerId_fk` FOREIGN KEY (`leadLawyerId`) REFERENCES `users`(`id`) ON DELETE restrict ON UPDATE cascade;
