@@ -330,11 +330,20 @@ export async function upsertBrandingSettings(
 
 // ============ CLIENT QUERIES ============
 
-export async function getClientsByLawFirm(lawFirmId: number): Promise<Client[]> {
+export async function getClientsByLawFirm(
+  lawFirmId: number,
+  pagination: { limit?: number; offset?: number } = {},
+): Promise<Client[]> {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database not available");
 
-  return db.select().from(clients).where(eq(clients.lawFirmId, lawFirmId));
+  const limit = Math.min(Math.max(pagination.limit ?? 50, 1), 100);
+  const offset = Math.max(pagination.offset ?? 0, 0);
+  return db.select().from(clients)
+    .where(eq(clients.lawFirmId, lawFirmId))
+    .orderBy(desc(clients.createdAt))
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function getClientById(id: number): Promise<Client | undefined> {
@@ -413,9 +422,14 @@ export async function getCasesByMatter(matterId: number): Promise<Case[]> {
   )).orderBy(desc(cases.createdAt));
 }
 
-export async function getCasesByLawFirm(lawFirmId: number, filters?: { status?: string; search?: string }): Promise<Case[]> {
+export async function getCasesByLawFirm(
+  lawFirmId: number,
+  filters?: { status?: string; search?: string; limit?: number; offset?: number },
+): Promise<Case[]> {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) throw new Error("Database not available");
+  const limit = Math.min(Math.max(filters?.limit ?? 50, 1), 100);
+  const offset = Math.max(filters?.offset ?? 0, 0);
 
   let conditions = [eq(cases.lawFirmId, lawFirmId), eq(cases.isDeleted, false)];
 
@@ -427,7 +441,11 @@ export async function getCasesByLawFirm(lawFirmId: number, filters?: { status?: 
     conditions.push(sql`(${cases.caseNumber} LIKE ${`%${filters.search}%`} OR ${cases.title} LIKE ${`%${filters.search}%`})`);
   }
 
-  return db.select().from(cases).where(and(...conditions)).orderBy(desc(cases.createdAt));
+  return db.select().from(cases)
+    .where(and(...conditions))
+    .orderBy(desc(cases.createdAt))
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function getCaseById(id: number): Promise<Case | undefined> {

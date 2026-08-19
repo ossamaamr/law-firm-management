@@ -448,11 +448,15 @@ export const appRouter = router({
   cases: router({
     list: lawFirmProcedure.input(z.object({
       status: z.string().optional(),
-      search: z.string().optional(),
-    })).query(async ({ input, ctx }) => {
+      search: z.string().trim().max(200).optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+      offset: z.number().int().min(0).max(100000).default(0),
+    }).default({ limit: 50, offset: 0 })).query(async ({ input, ctx }) => {
       return getCasesByLawFirm(ctx.lawFirmId, {
         status: input.status,
         search: input.search,
+        limit: input.limit,
+        offset: input.offset,
       });
     }),
 
@@ -614,8 +618,11 @@ export const appRouter = router({
 
   // ============ CLIENTS ROUTER ============
   clients: router({
-    list: lawFirmProcedure.query(async ({ ctx }) => {
-      return getClientsByLawFirm(ctx.lawFirmId);
+    list: lawFirmProcedure.input(z.object({
+      limit: z.number().int().min(1).max(100).default(50),
+      offset: z.number().int().min(0).max(100000).default(0),
+    }).default({ limit: 50, offset: 0 })).query(async ({ input, ctx }) => {
+      return getClientsByLawFirm(ctx.lawFirmId, input);
     }),
 
     get: lawFirmProcedure.input(z.number()).query(async ({ input, ctx }) => {
