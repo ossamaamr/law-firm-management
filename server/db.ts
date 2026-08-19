@@ -863,6 +863,15 @@ export async function createInvoice(data: Omit<Invoice, 'id' | 'createdAt' | 'up
   return invoice[0];
 }
 
+export async function getInvoiceInLawFirm(invoiceId: number, lawFirmId: number): Promise<Invoice | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [invoice] = await db.select().from(invoices)
+    .where(and(eq(invoices.id, invoiceId), eq(invoices.lawFirmId, lawFirmId)))
+    .limit(1);
+  return invoice ?? null;
+}
+
 
 // ============ IMMUTABLE FINANCIAL LEDGER ============
 
@@ -949,4 +958,31 @@ export async function getLedgerEntriesByLawFirm(
     .orderBy(desc(ledgerEntries.createdAt), desc(ledgerEntries.id))
     .limit(limit)
     .offset(offset);
+}
+
+
+/**
+ * Post an issued invoice to the ledger exactly once.
+ * This records an obligation, not a payment receipt.
+ */
+export async function appendInvoiceIssuedLedgerEntry(input: {
+  invoiceId: number;
+  lawFirmId: number;
+  createdById: number;
+}): Promise<LedgerEntry> {
+  const invoice = await getInvoiceInLawFirm(input.invoiceId, input.lawFirmId);
+  if (!invoice) throw new Error("Invoice not found in law firm");
+  return appendLedgerEntry({
+    lawFirmId: input.lawFirmId,
+    matterId: invoice.matterId,
+    invoiceId: invoice.id,
+    duePaymentId: invoice.duePaymentId,
+    entryType: "invoice_issued",
+    direction: "debit",
+    amount: String(invoice.finalAmount),
+    currency: "SAR",
+    idempotencyKey: `invoice-issued:${input.lawFirmId}:${invoice.id}`,
+    createdById: input.createdById,
+    metadata: { invoiceNumber: invoice.invoiceNumber },
+  });
 }

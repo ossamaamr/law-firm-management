@@ -67,4 +67,9 @@ describe("Immutable ledger security contract", () => {
     await expect(appRouter.createCaller(context("user")).ledger.list({ limit: 10, offset: 0 }))
       .rejects.toMatchObject({ code: "FORBIDDEN" });
   });
+
+  it("denies invoice-ledger posting to a regular firm user", async () => {
+    await expect(appRouter.createCaller(context("user")).ledger.recordInvoiceIssued({ invoiceId: 1 }))
+      .rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
 });

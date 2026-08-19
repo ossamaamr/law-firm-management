@@ -603,3 +603,14 @@
 | `git diff --check` | ناجح |
 
 الحالة الدقيقة لـP1-007: **IMPLEMENTED repository ledger / external payment provider blocked / invoice settlement integration pending**. التصنيف العام يبقى **BETA READY — NOT PRODUCTION READY**.
+
+
+## الخطوة الثانية بعد مزامنة GitHub — Invoice Obligation Settlement
+
+بعد دفع جميع commits السابقة بنجاح إلى `origin/main`، استُكملت الخطوة الثانية من المسار المالي. أضيفت `getInvoiceInLawFirm` للتحقق من ملكية الفاتورة للمكتب، وأضيفت `appendInvoiceIssuedLedgerEntry` لإنشاء قيد `invoice_issued` من `finalAmount` بمفتاح idempotency ثابت `invoice-issued:{lawFirmId}:{invoiceId}`. هذا القيد يمثل التزامًا/إصدار فاتورة فقط، ولا يمثل تحصيلًا أو نجاح دفع.
+
+أضيف الإجراء المالي `ledger.recordInvoiceIssued`، وهو محمي بالأدوار `admin` و`manager` و`accountant` وTenant context. لا يوجد مسار لتسجيل `payment_received` دون إثبات مزود دفع معتمد؛ ويظل `PaymentService` fail-closed.
+
+نجحت الاختبارات بعد إعادة بناء روابط الاعتماديات: `pnpm check`، واختبار ledger المركز **4/4**، و`pnpm test` بنتيجة **138 اختبارًا ناجحًا و30 متخطيًا** لغياب `DATABASE_URL`، و`pnpm build`، و`git diff --check`. فشل الجولة الأولى كان بيئيًا بسبب روابط `multer` و`supertest` بعد تنظيف `node_modules`، ثم نجح التثبيت القسري والبوابات دون تغيير في السلوك المالي.
+
+حالة P1-007 أصبحت **IMPLEMENTED repository ledger + invoice obligation / external payment settlement blocked**. لا يُعلن البند مكتملًا بالكامل قبل اعتماد مزود دفع حقيقي أو اعتماد ledger كبديل تشغيلي كامل مع تسوية invoices/duePayments واختبار MySQL transaction.

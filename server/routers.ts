@@ -20,7 +20,7 @@ import {
   revokeUserInvitation, assignUserToLawFirm, markInvitationAccepted,
   getLawFirmByIdentifier, getRegistrationRequestsByLawFirm, getRegistrationRequestsByUser,
   createRegistrationRequest, reviewRegistrationRequest, approveRegistrationRequestAtomically, searchLawFirm,
-  getLedgerEntriesByLawFirm,
+  getLedgerEntriesByLawFirm, appendInvoiceIssuedLedgerEntry,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
@@ -755,6 +755,15 @@ export const appRouter = router({
       offset: z.number().int().min(0).max(100000).default(0),
     }).default({ limit: 50, offset: 0 })).query(async ({ input, ctx }) => {
       return getLedgerEntriesByLawFirm(ctx.lawFirmId, input);
+    }),
+    recordInvoiceIssued: financeProcedure.input(z.object({
+      invoiceId: z.number().int().positive(),
+    })).mutation(async ({ input, ctx }) => {
+      return appendInvoiceIssuedLedgerEntry({
+        invoiceId: input.invoiceId,
+        lawFirmId: ctx.lawFirmId,
+        createdById: ctx.user.id,
+      });
     }),
   }),
 
