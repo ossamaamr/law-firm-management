@@ -537,3 +537,14 @@
 | `git diff --check` | ناجح |
 
 حالة P1-008 أصبحت **IMPLEMENTED repository / production preflight pending**. لم تُرفع نسبة الجاهزية إلى Production Ready بسبب عدم توفر قاعدة اختبار معتمدة وعدم تنفيذ preflight أو تطبيق migration على بيئة خارجية.
+
+
+## إصلاح أمني عاجل P1-005 — Fail-Closed Document Scanning
+
+اكتشف التدقيق أن `toSafeDocumentMetadata` كان يحول `scanStatus` المفقود إلى `clean`، وهو سلوك fail-open قد يسمح نظريًا بإصدار Metadata تبدو آمنة لسجل لم يثبت فحصه. أُصلح ذلك بحيث تصبح القيمة الافتراضية `pending`، كما أصبح default schema نفسه `pending`.
+
+أُنشئت migration `drizzle/0012_document_scan_fail_closed.sql` التي تعيد تصنيف كل السجلات القديمة ذات الحالة `clean` إلى `pending` قبل تغيير default قاعدة البيانات. هذا قرار محافظ: حتى الوثائق القديمة التي ربما فُحصت سابقًا ستحتاج إلى نتيجة scanner معتمدة جديدة قبل السماح بتنزيلها. يظل endpoint `documents.getDownloadUrl` محجوبًا لأي حالة غير `clean`، كما يبقى غياب scanner أو فشله `pending` وليس `clean`.
+
+أضيف regression test يثبت أن `toSafeDocumentMetadata` يعيد `pending` عند غياب `scanStatus`، مع استمرار اختبار غياب scanner الذي يثبت fail-safe. نجحت البوابات: `pnpm check`، و`pnpm test` بنتيجة **134 اختبارًا ناجحًا و30 متخطيًا**، و`pnpm build`، و`git diff --check`.
+
+حالة P1-005 أصبحت **IMPLEMENTED fail-closed repository / external scanner pending**. لم يُدّع إغلاق البند الإنتاجي لأن نتيجة `clean` الحقيقية ما زالت تتطلب scanner معتمدًا، لكن مسار الفشل الآن آمن ولا يسمح بتحويل الغياب أو الخطأ إلى نجاح وهمي.

@@ -114,7 +114,8 @@ export function toSafeDocumentMetadata(document: {
     version: document.version ?? 1,
     previousVersionId: document.previousVersionId ?? null,
     contentHash: document.contentHash ?? null,
-    scanStatus: document.scanStatus ?? "clean",
+    // Missing scan state is never safe to treat as clean; legacy or incomplete rows remain blocked.
+    scanStatus: document.scanStatus ?? "pending",
     retentionUntil: document.retentionUntil ?? null,
     expiryDate: document.expiryDate,
     createdAt: document.createdAt,

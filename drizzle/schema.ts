@@ -319,7 +319,7 @@ export const documents = mysqlTable("documents", {
   version: int("version").default(1).notNull(),
   previousVersionId: int("previousVersionId"),
   contentHash: varchar("contentHash", { length: 64 }),
-  scanStatus: mysqlEnum("scanStatus", ["clean", "pending", "quarantined"]).default("clean").notNull(),
+  scanStatus: mysqlEnum("scanStatus", ["clean", "pending", "quarantined"]).default("pending").notNull(),
   retentionUntil: timestamp("retentionUntil"),
   expiryDate: timestamp("expiryDate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

@@ -78,6 +78,13 @@
       "when": 1787150970076,
       "tag": "0011_core_relationship_fks",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1787152678434,
+      "tag": "0012_document_scan_fail_closed",
+      "breakpoints": true
     }
   ]
 }

@@ -64,6 +64,7 @@ describe("Document security contract", () => {
     });
     expect(safe).not.toHaveProperty("s3Key");
     expect(safe).not.toHaveProperty("s3Url");
+    expect(safe.scanStatus).toBe("pending");
   });
 
   it("validates file signatures instead of trusting MIME metadata", () => {
