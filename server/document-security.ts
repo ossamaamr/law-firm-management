@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 export const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
@@ -16,6 +17,8 @@ export const documentUploadMetadataSchema = z.object({
   fileType: z.string().trim().min(1).max(100),
   fileSize: z.number().int().positive().max(MAX_DOCUMENT_BYTES),
 });
+
+export type DocumentScanStatus = "clean" | "pending" | "quarantined";
 
 export function validateDocumentUploadMetadata(input: z.infer<typeof documentUploadMetadataSchema>) {
   const parsed = documentUploadMetadataSchema.parse(input);
@@ -38,6 +41,47 @@ export function validateUploadedFileContent(fileType: string, buffer: Buffer) {
   return true;
 }
 
+export function getDocumentContentHash(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+/**
+ * Scanner boundary. Without an approved scanner, uploads remain pending and
+ * download URLs must not be issued. No local heuristic is represented as a
+ * malware scan result.
+ */
+export async function scanDocumentBuffer(input: {
+  buffer: Buffer;
+  fileName: string;
+  fileType: string;
+}): Promise<DocumentScanStatus> {
+  const scannerUrl = process.env.DOCUMENT_SCANNER_URL?.trim();
+  const scannerKey = process.env.DOCUMENT_SCANNER_API_KEY?.trim();
+  if (!scannerUrl || !scannerKey) return "pending";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(scannerUrl, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${scannerKey}`,
+        "content-type": input.fileType,
+        "x-document-name": input.fileName,
+      },
+      body: new Uint8Array(input.buffer),
+      signal: controller.signal,
+    });
+    if (!response.ok) return "pending";
+    const payload = await response.json() as { status?: unknown };
+    return payload.status === "clean" || payload.status === "quarantined" ? payload.status : "pending";
+  } catch {
+    return "pending";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function toSafeDocumentMetadata(document: {
   id: number;
   caseId: number | null;
@@ -48,6 +92,11 @@ export function toSafeDocumentMetadata(document: {
   fileSize: number | null;
   documentType: string;
   description: string | null;
+  version?: number;
+  previousVersionId?: number | null;
+  contentHash?: string | null;
+  scanStatus?: DocumentScanStatus;
+  retentionUntil?: Date | null;
   expiryDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -62,6 +111,11 @@ export function toSafeDocumentMetadata(document: {
     fileSize: document.fileSize,
     documentType: document.documentType,
     description: document.description,
+    version: document.version ?? 1,
+    previousVersionId: document.previousVersionId ?? null,
+    contentHash: document.contentHash ?? null,
+    scanStatus: document.scanStatus ?? "clean",
+    retentionUntil: document.retentionUntil ?? null,
     expiryDate: document.expiryDate,
     createdAt: document.createdAt,
     updatedAt: document.updatedAt,

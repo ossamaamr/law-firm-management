@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   createContext: vi.fn(),
   getCaseById: vi.fn(),
   createDocument: vi.fn(),
+  getLatestDocumentVersion: vi.fn(),
   storagePut: vi.fn(),
   logActivity: vi.fn(),
 }));
@@ -19,6 +20,7 @@ vi.mock("./_core/context", () => ({ createContext: mocks.createContext }));
 vi.mock("./db", () => ({
   getCaseById: mocks.getCaseById,
   createDocument: mocks.createDocument,
+  getLatestDocumentVersion: mocks.getLatestDocumentVersion,
 }));
 vi.mock("./storage", () => ({ storagePut: mocks.storagePut }));
 vi.mock("./activity.service", () => ({ logActivity: mocks.logActivity }));
@@ -52,6 +54,7 @@ describe("multipart document upload integration contract", () => {
       key: "firms/101/documents/generated-contract.pdf",
       url: "internal-storage-url",
     });
+    mocks.getLatestDocumentVersion.mockResolvedValue(undefined);
     createDocumentMock.mockResolvedValue({
       id: 55,
       caseId: 10,

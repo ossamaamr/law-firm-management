@@ -7,6 +7,8 @@ import {
   toSafeDocumentMetadata,
   validateDocumentUploadMetadata,
   validateUploadedFileContent,
+  getDocumentContentHash,
+  scanDocumentBuffer,
 } from "./document-security";
 
 function context(user: TrpcContext["user"]): TrpcContext {
@@ -68,6 +70,22 @@ describe("Document security contract", () => {
     expect(() => validateUploadedFileContent("application/pdf", Buffer.from("%PDF-1.7"))).not.toThrow();
     expect(() => validateUploadedFileContent("image/png", Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).not.toThrow();
     expect(() => validateUploadedFileContent("application/pdf", Buffer.from("not a pdf"))).toThrow();
+  });
+
+  it("creates a stable content hash for audit/versioning", () => {
+    expect(getDocumentContentHash(Buffer.from("mersad"))).toBe(getDocumentContentHash(Buffer.from("mersad")));
+    expect(getDocumentContentHash(Buffer.from("mersad"))).not.toBe(getDocumentContentHash(Buffer.from("MERSAD")));
+  });
+
+  it("fails safe to pending when no malware scanner is configured", async () => {
+    vi.stubEnv("DOCUMENT_SCANNER_URL", "");
+    vi.stubEnv("DOCUMENT_SCANNER_API_KEY", "");
+    await expect(scanDocumentBuffer({
+      buffer: Buffer.from("%PDF-1.7"),
+      fileName: "contract.pdf",
+      fileType: "application/pdf",
+    })).resolves.toBe("pending");
+    vi.unstubAllEnvs();
   });
 
   it("enforces the server-side size and MIME contract", () => {

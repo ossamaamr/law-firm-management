@@ -9,6 +9,7 @@ const dbMocks = vi.hoisted(() => ({
   reviewRegistrationRequest: vi.fn(),
   getUserById: vi.fn(),
   assignUserToLawFirm: vi.fn(),
+  approveRegistrationRequestAtomically: vi.fn(),
 }));
 
 vi.mock("./db", async () => {
@@ -49,6 +50,10 @@ describe("registration request authorization contract", () => {
     dbMocks.getUserById.mockResolvedValue(unassigned);
     dbMocks.assignUserToLawFirm.mockResolvedValue({ ...unassigned, lawFirmId: 101, role: "lawyer" });
     dbMocks.reviewRegistrationRequest.mockResolvedValue({ ...pending, status: "approved", reviewedById: 1 });
+    dbMocks.approveRegistrationRequestAtomically.mockResolvedValue({
+      user: { ...unassigned, lawFirmId: 101, role: "lawyer" },
+      request: { ...pending, status: "approved", reviewedById: 1 },
+    });
   });
 
   it("requires authentication to submit a join request", async () => {
@@ -77,8 +82,9 @@ describe("registration request authorization contract", () => {
   it("approves only a request whose requester is still unassigned", async () => {
     const result = await appRouter.createCaller(context(admin)).admin.registrationRequests.approve({ requestId: 5 });
     expect(result).toEqual({ success: true, userId: 8, status: "approved" });
-    expect(dbMocks.assignUserToLawFirm).toHaveBeenCalledWith(8, 101, "lawyer");
-    expect(dbMocks.reviewRegistrationRequest).toHaveBeenCalledWith(101, 5, "approved", 1);
+    expect(dbMocks.approveRegistrationRequestAtomically).toHaveBeenCalledWith(101, 5, 1);
+    expect(dbMocks.assignUserToLawFirm).not.toHaveBeenCalled();
+    expect(dbMocks.reviewRegistrationRequest).not.toHaveBeenCalled();
   });
 
   it("rejects requests outside the authenticated firm's list", async () => {

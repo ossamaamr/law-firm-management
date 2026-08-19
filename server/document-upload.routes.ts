@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
 import express, { type Request, type Response } from "express";
 import multer from "multer";
-import { getCaseById, createDocument } from "./db";
+import { getCaseById, createDocument, getLatestDocumentVersion } from "./db";
 import { createContext } from "./_core/context";
 import { storagePut } from "./storage";
 import {
   MAX_DOCUMENT_BYTES,
   validateDocumentUploadMetadata,
   validateUploadedFileContent,
+  getDocumentContentHash,
+  scanDocumentBuffer,
   toSafeDocumentMetadata,
 } from "./document-security";
 import { logActivity } from "./activity.service";
@@ -51,6 +53,12 @@ documentUploadRouter.post(
         fileSize: req.file.size,
       });
       validateUploadedFileContent(metadata.fileType, req.file.buffer);
+      const contentHash = getDocumentContentHash(req.file.buffer);
+      const scanStatus = await scanDocumentBuffer({
+        buffer: req.file.buffer,
+        fileName: metadata.fileName,
+        fileType: metadata.fileType,
+      });
 
       const caseId = Number(req.body.caseId);
       const documentType = String(req.body.documentType || "other");
@@ -66,6 +74,7 @@ documentUploadRouter.post(
         return res.status(404).json({ error: "Case not found" });
       }
 
+      const latestVersion = await getLatestDocumentVersion(ctx.user.lawFirmId, caseId, metadata.fileName);
       const safeName = metadata.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
       const storageKey = `firms/${ctx.user.lawFirmId}/documents/${randomUUID()}-${safeName}`;
       const stored = await storagePut(storageKey, req.file.buffer, metadata.fileType);
@@ -83,6 +92,11 @@ documentUploadRouter.post(
         documentType: documentType as any,
         description: typeof req.body.description === "string" ? req.body.description.slice(0, 2000) : null,
         isPublic: false,
+        version: (latestVersion?.version ?? 0) + 1,
+        previousVersionId: latestVersion?.id ?? null,
+        contentHash,
+        scanStatus,
+        retentionUntil: null,
         expiryDate: null,
       });
 

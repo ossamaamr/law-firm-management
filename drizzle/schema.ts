@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, json, unique } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, json, unique, index } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
 /**
@@ -131,7 +131,9 @@ export const clients = mysqlTable("clients", {
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  lawFirmCreatedAtIdx: index("clients_lawFirm_createdAt_idx").on(table.lawFirmId, table.createdAt),
+}));
 
 export type Client = typeof clients.$inferSelect;
 export type InsertClient = typeof clients.$inferInsert;
@@ -211,7 +213,10 @@ export const cases = mysqlTable("cases", {
   isDeleted: boolean("isDeleted").default(false),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  lawFirmCreatedAtIdx: index("cases_lawFirm_createdAt_idx").on(table.lawFirmId, table.createdAt),
+  lawFirmStatusIdx: index("cases_lawFirm_status_idx").on(table.lawFirmId, table.status),
+}));
 
 export type Case = typeof cases.$inferSelect;
 export type InsertCase = typeof cases.$inferInsert;
@@ -304,10 +309,20 @@ export const documents = mysqlTable("documents", {
   documentType: mysqlEnum("documentType", ["power_of_attorney", "contract", "evidence", "court_order", "judgment", "petition", "response", "invoice", "receipt", "other"]).notNull(),
   description: text("description"),
   isPublic: boolean("isPublic").default(false),
+  version: int("version").default(1).notNull(),
+  previousVersionId: int("previousVersionId"),
+  contentHash: varchar("contentHash", { length: 64 }),
+  scanStatus: mysqlEnum("scanStatus", ["clean", "pending", "quarantined"]).default("clean").notNull(),
+  retentionUntil: timestamp("retentionUntil"),
   expiryDate: timestamp("expiryDate"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  lawFirmCreatedAtIdx: index("documents_lawFirm_createdAt_idx").on(table.lawFirmId, table.createdAt),
+  lawFirmMatterIdx: index("documents_lawFirm_matter_idx").on(table.lawFirmId, table.matterId),
+  caseVersionIdx: index("documents_case_version_idx").on(table.lawFirmId, table.caseId, table.version),
+  scanStatusIdx: index("documents_scan_status_idx").on(table.lawFirmId, table.scanStatus),
+}));
 
 export type Document = typeof documents.$inferSelect;
 export type InsertDocument = typeof documents.$inferInsert;
@@ -415,7 +430,9 @@ export const notifications = mysqlTable("notifications", {
   isRead: boolean("isRead").default(false),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   readAt: timestamp("readAt"),
-});
+}, (table) => ({
+  userCreatedAtIdx: index("notifications_user_createdAt_idx").on(table.userId, table.createdAt),
+}));
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
@@ -455,7 +472,9 @@ export const activityLogs = mysqlTable("activityLogs", {
   changes: json("changes"),
   ipAddress: varchar("ipAddress", { length: 45 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  firmCreatedAtIdx: index("activityLogs_firm_createdAt_idx").on(table.firmId, table.createdAt),
+}));
 
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;

@@ -19,7 +19,7 @@ import {
   getInvitationsByLawFirm, getInvitationByTokenHash, createUserInvitation,
   revokeUserInvitation, assignUserToLawFirm, markInvitationAccepted,
   getLawFirmByIdentifier, getRegistrationRequestsByLawFirm, getRegistrationRequestsByUser,
-  createRegistrationRequest, reviewRegistrationRequest,
+  createRegistrationRequest, reviewRegistrationRequest, approveRegistrationRequestAtomically, searchLawFirm,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
@@ -79,6 +79,14 @@ export const appRouter = router({
   
   auth: authRouter,
   activity: activityRouter,
+
+  search: router({
+    list: lawFirmProcedure.input(z.object({
+      query: z.string().trim().min(2).max(200),
+      limit: z.number().int().min(1).max(100).default(30),
+      offset: z.number().int().min(0).max(100000).default(0),
+    })).query(({ input, ctx }) => searchLawFirm(ctx.lawFirmId, input.query, input)),
+  }),
 
   dashboard: router({
     summary: lawFirmProcedure
@@ -189,13 +197,10 @@ export const appRouter = router({
         const requests = await getRegistrationRequestsByLawFirm(ctx.lawFirmId);
         const request = requests.find(item => item.id === input.requestId);
         if (!request || request.status !== "pending") throw new TRPCError({ code: "NOT_FOUND", message: "Pending request not found" });
-        const target = await getUserById(request.requesterUserId);
-        if (!target || target.lawFirmId) throw new TRPCError({ code: "CONFLICT", message: "Requester is no longer eligible" });
-        if (!target.email || target.email.trim().toLowerCase() !== request.email) throw new TRPCError({ code: "CONFLICT", message: "Requester email no longer matches" });
-        const joined = await assignUserToLawFirm(target.id, ctx.lawFirmId, request.requestedRole);
-        if (!joined || joined.lawFirmId !== ctx.lawFirmId) throw new TRPCError({ code: "CONFLICT", message: "Unable to assign requester to the firm" });
-        const reviewed = await reviewRegistrationRequest(ctx.lawFirmId, request.id, "approved", ctx.user.id);
-        if (!reviewed) throw new TRPCError({ code: "CONFLICT", message: "Request could not be reviewed" });
+        const approved = await approveRegistrationRequestAtomically(ctx.lawFirmId, request.id, ctx.user.id);
+        if (!approved) throw new TRPCError({ code: "CONFLICT", message: "Requester is no longer eligible or request was already reviewed" });
+        const target = approved.user;
+        const reviewed = approved.request;
         await logActivity({
           firmId: ctx.lawFirmId,
           userId: ctx.user.id,
@@ -743,6 +748,12 @@ export const appRouter = router({
     getDownloadUrl: lawFirmProcedure.input(z.number().int().positive()).query(async ({ input, ctx }) => {
       const document = await getDocumentById(input, ctx.lawFirmId);
       if (!document) throw new TRPCError({ code: "NOT_FOUND" });
+      if (document.scanStatus !== "clean") {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Document is not cleared for download" });
+      }
+      if (document.retentionUntil && document.retentionUntil.getTime() <= Date.now()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Document retention period has expired" });
+      }
       const signed = await storageGet(document.s3Key);
       await logActivity({
         firmId: ctx.lawFirmId,

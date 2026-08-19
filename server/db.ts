@@ -168,6 +168,55 @@ export async function assignUserToLawFirm(
   return getUserById(userId);
 }
 
+export async function approveRegistrationRequestAtomically(
+  lawFirmId: number,
+  requestId: number,
+  reviewedById: number,
+): Promise<{ user: User; request: RegistrationRequest } | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.transaction(async tx => {
+    const [pending] = await tx
+      .select()
+      .from(registrationRequests)
+      .where(and(
+        eq(registrationRequests.id, requestId),
+        eq(registrationRequests.lawFirmId, lawFirmId),
+        eq(registrationRequests.status, "pending"),
+      ))
+      .limit(1);
+    if (!pending) return undefined;
+
+    const [target] = await tx
+      .select()
+      .from(users)
+      .where(and(eq(users.id, pending.requesterUserId), isNull(users.lawFirmId)))
+      .limit(1);
+    if (!target || !target.email || target.email.trim().toLowerCase() !== pending.email) return undefined;
+
+    await tx.update(users)
+      .set({ lawFirmId, role: pending.requestedRole })
+      .where(and(eq(users.id, target.id), isNull(users.lawFirmId)));
+    await tx.update(registrationRequests)
+      .set({ status: "approved", reviewedById, reviewedAt: new Date(), rejectionReason: null })
+      .where(and(
+        eq(registrationRequests.id, requestId),
+        eq(registrationRequests.lawFirmId, lawFirmId),
+        eq(registrationRequests.status, "pending"),
+      ));
+
+    const [updatedUser] = await tx.select().from(users).where(eq(users.id, target.id)).limit(1);
+    const [updatedRequest] = await tx.select().from(registrationRequests)
+      .where(and(eq(registrationRequests.id, requestId), eq(registrationRequests.lawFirmId, lawFirmId)))
+      .limit(1);
+    if (!updatedUser || !updatedRequest || updatedUser.lawFirmId !== lawFirmId || updatedRequest.status !== "approved") {
+      throw new Error("Approval transaction did not produce a consistent state");
+    }
+    return { user: updatedUser, request: updatedRequest };
+  });
+}
+
 // ============ USER INVITATION QUERIES ============
 
 export async function getInvitationsByLawFirm(lawFirmId: number): Promise<UserInvitation[]> {
@@ -448,6 +497,54 @@ export async function getCasesByLawFirm(
     .offset(offset);
 }
 
+export type TenantSearchResult = {
+  type: "client" | "matter" | "case";
+  id: number;
+  title: string;
+  subtitle: string | null;
+};
+
+export async function searchLawFirm(
+  lawFirmId: number,
+  query: string,
+  pagination: { limit?: number; offset?: number } = {},
+): Promise<TenantSearchResult[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return [];
+  const limit = Math.min(Math.max(pagination.limit ?? 30, 1), 100);
+  const offset = Math.max(pagination.offset ?? 0, 0);
+  const fetchLimit = Math.min(limit + offset, 200);
+  const pattern = `%${normalizedQuery}%`;
+  const prefixPattern = `${normalizedQuery}%`;
+
+  const [clientRows, matterRows, caseRows] = await Promise.all([
+    db.select({ id: clients.id, title: clients.name, subtitle: clients.email })
+      .from(clients)
+      .where(and(eq(clients.lawFirmId, lawFirmId), like(clients.name, pattern)))
+      .orderBy(sql`CASE WHEN ${clients.name} = ${normalizedQuery} THEN 0 WHEN ${clients.name} LIKE ${prefixPattern} THEN 1 ELSE 2 END`, desc(clients.createdAt))
+      .limit(fetchLimit),
+    db.select({ id: matters.id, title: matters.title, subtitle: matters.matterNumber })
+      .from(matters)
+      .where(and(eq(matters.lawFirmId, lawFirmId), like(matters.title, pattern)))
+      .orderBy(sql`CASE WHEN ${matters.title} = ${normalizedQuery} THEN 0 WHEN ${matters.title} LIKE ${prefixPattern} THEN 1 ELSE 2 END`, desc(matters.createdAt))
+      .limit(fetchLimit),
+    db.select({ id: cases.id, title: cases.title, subtitle: cases.caseNumber })
+      .from(cases)
+      .where(and(eq(cases.lawFirmId, lawFirmId), eq(cases.isDeleted, false), like(cases.title, pattern)))
+      .orderBy(sql`CASE WHEN ${cases.title} = ${normalizedQuery} THEN 0 WHEN ${cases.title} LIKE ${prefixPattern} THEN 1 ELSE 2 END`, desc(cases.createdAt))
+      .limit(fetchLimit),
+  ]);
+
+  return [
+    ...clientRows.map((row) => ({ ...row, type: "client" as const })),
+    ...matterRows.map((row) => ({ ...row, type: "matter" as const })),
+    ...caseRows.map((row) => ({ ...row, type: "case" as const })),
+  ].slice(offset, offset + limit);
+}
+
 export async function getCaseById(id: number): Promise<Case | undefined> {
   const db = await getDb();
   if (!db) return undefined;
@@ -491,7 +588,7 @@ export async function getProjectsByMatter(matterId: number): Promise<Project[]> 
   return db.select().from(projects).where(and(
     eq(projects.matterId, matterId),
     eq(projects.isDeleted, false)
-  )).orderBy(desc(projects.createdAt));
+  )).orderBy(desc(projects.createdAt)).limit(100);
 }
 
 export async function getProjectById(id: number): Promise<Project | undefined> {
@@ -519,7 +616,7 @@ export async function getSessionsByCaseId(caseId: number): Promise<CourtSession[
   const db = await getDb();
   if (!db) return [];
 
-  return db.select().from(courtSessions).where(eq(courtSessions.caseId, caseId)).orderBy(desc(courtSessions.sessionDate));
+  return db.select().from(courtSessions).where(eq(courtSessions.caseId, caseId)).orderBy(desc(courtSessions.sessionDate)).limit(100);
 }
 
 export async function getUpcomingSessions(lawFirmId: number, hoursAhead: number = 24): Promise<CourtSession[]> {
@@ -529,12 +626,38 @@ export async function getUpcomingSessions(lawFirmId: number, hoursAhead: number 
   const futureTime = new Date(Date.now() + hoursAhead * 60 * 60 * 1000);
   const now = new Date();
 
-  return db.select().from(courtSessions)
+  const rows = await db.select({ session: courtSessions })
+    .from(courtSessions)
+    .innerJoin(cases, eq(courtSessions.caseId, cases.id))
     .where(and(
+      eq(cases.lawFirmId, lawFirmId),
+      eq(cases.isDeleted, false),
       sql`${courtSessions.sessionDate} BETWEEN ${now} AND ${futureTime}`,
-      eq(courtSessions.notificationSent, false)
+      eq(courtSessions.notificationSent, false),
     ))
     .orderBy(asc(courtSessions.sessionDate));
+  return rows.map(row => row.session);
+}
+
+export async function claimCourtSessionReminder(sessionId: number, lawFirmId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [owned] = await db.select({ id: courtSessions.id })
+    .from(courtSessions)
+    .innerJoin(cases, eq(courtSessions.caseId, cases.id))
+    .where(and(
+      eq(courtSessions.id, sessionId),
+      eq(cases.lawFirmId, lawFirmId),
+      eq(cases.isDeleted, false),
+      eq(courtSessions.notificationSent, false),
+    ))
+    .limit(1);
+  if (!owned) return false;
+  const result = await db.update(courtSessions)
+    .set({ notificationSent: true })
+    .where(and(eq(courtSessions.id, sessionId), eq(courtSessions.notificationSent, false)));
+  const header = Array.isArray(result) ? result[0] : result;
+  return Number((header as { affectedRows?: unknown } | null | undefined)?.affectedRows) === 1;
 }
 
 export async function createCourtSession(data: Omit<CourtSession, 'id' | 'createdAt' | 'updatedAt'>): Promise<CourtSession> {
@@ -556,7 +679,8 @@ export async function getDocumentsByCaseId(caseId: number, lawFirmId: number): P
 
   return db.select().from(documents)
     .where(and(eq(documents.caseId, caseId), eq(documents.lawFirmId, lawFirmId)))
-    .orderBy(desc(documents.createdAt));
+    .orderBy(desc(documents.createdAt))
+    .limit(100);
 }
 
 export async function getDocumentById(id: number, lawFirmId: number): Promise<Document | null> {
@@ -567,6 +691,24 @@ export async function getDocumentById(id: number, lawFirmId: number): Promise<Do
     .where(and(eq(documents.id, id), eq(documents.lawFirmId, lawFirmId)))
     .limit(1);
   return rows[0] ?? null;
+}
+
+export async function getLatestDocumentVersion(
+  lawFirmId: number,
+  caseId: number | null,
+  fileName: string,
+): Promise<Document | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.select().from(documents)
+    .where(and(
+      eq(documents.lawFirmId, lawFirmId),
+      caseId === null ? isNull(documents.caseId) : eq(documents.caseId, caseId),
+      eq(documents.fileName, fileName),
+    ))
+    .orderBy(desc(documents.version), desc(documents.createdAt))
+    .limit(1);
+  return rows[0];
 }
 
 export async function createDocument(data: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<Document> {
@@ -651,7 +793,8 @@ export async function getTimesheetsByMatter(matterId: number): Promise<Timesheet
 
   return db.select().from(timesheets)
     .where(eq(timesheets.matterId, matterId))
-    .orderBy(desc(timesheets.date));
+    .orderBy(desc(timesheets.date))
+    .limit(100);
 }
 
 export async function createTimesheet(data: Omit<Timesheet, 'id' | 'createdAt' | 'updatedAt'>): Promise<Timesheet> {
@@ -673,7 +816,8 @@ export async function getExpensesByMatter(matterId: number): Promise<Expense[]> 
 
   return db.select().from(expenses)
     .where(eq(expenses.matterId, matterId))
-    .orderBy(desc(expenses.date));
+    .orderBy(desc(expenses.date))
+    .limit(100);
 }
 
 export async function createExpense(data: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>): Promise<Expense> {
@@ -695,7 +839,8 @@ export async function getInvoicesByMatter(matterId: number): Promise<Invoice[]> 
 
   return db.select().from(invoices)
     .where(eq(invoices.matterId, matterId))
-    .orderBy(desc(invoices.invoiceDate));
+    .orderBy(desc(invoices.invoiceDate))
+    .limit(100);
 }
 
 export async function createInvoice(data: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>): Promise<Invoice> {

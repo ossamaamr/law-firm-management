@@ -42,14 +42,14 @@ export class EmailService {
     const html = `
       <div style="font-family: Arial, sans-serif; direction: rtl;">
         <h2>مرحباً ${name}!</h2>
-        <p>شكراً لتسجيلك في CasEngine</p>
+        <p>شكراً لتسجيلك في المنصة</p>
         <p>يرجى تأكيد بريدك الإلكتروني بالنقر على الرابط أدناه:</p>
         <a href="${confirmationUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
           تأكيد البريد الإلكتروني
         </a>
         <p>أو انسخ الرابط التالي:</p>
         <p>${confirmationUrl}</p>
-        <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+        <p>مع أطيب التحيات،<br>فريق المنصة</p>
       </div>
     `;
 
@@ -75,7 +75,7 @@ export class EmailService {
           إعادة تعيين كلمة المرور
         </a>
         <p>إذا لم تطلب هذا، يرجى تجاهل هذا البريد.</p>
-        <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+        <p>مع أطيب التحيات،<br>فريق المنصة</p>
       </div>
     `;
 
@@ -104,7 +104,7 @@ export class EmailService {
           <li><strong>المحكمة:</strong> ${courtName}</li>
         </ul>
         <p>يرجى التأكد من حضورك في الموعد المحدد.</p>
-        <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+        <p>مع أطيب التحيات،<br>فريق المنصة</p>
       </div>
     `;
 
@@ -137,7 +137,7 @@ export class EmailService {
           <li><strong>تاريخ الاستحقاق:</strong> ${dueDate}</li>
         </ul>
         <p>يرجى تسديد الفاتورة في الموعد المحدد.</p>
-        <p>مع أطيب التحيات،<br>فريق CasEngine</p>
+        <p>مع أطيب التحيات،<br>فريق المنصة</p>
       </div>
     `;
 
@@ -155,15 +155,10 @@ export class SMSService {
    * إرسال رسالة نصية
    */
   async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
-    try {
-      // Using Twilio or similar service
-      // This is a placeholder implementation
-      logger.info(`SMS sent to ${phoneNumber}: ${message}`);
-      return true;
-    } catch (error) {
-      logger.error("Error sending SMS:", error);
-      return false;
-    }
+    void phoneNumber;
+    void message;
+    logger.error("SMS delivery is unavailable because no approved provider is configured");
+    return false;
   }
 
   /**
@@ -233,20 +228,15 @@ export class PaymentService {
     paymentMethod: string,
     metadata?: Record<string, any>
   ): Promise<{ success: boolean; transactionId?: string; error?: string }> {
-    try {
-      // Integration with payment gateway (Stripe, PayPal, etc.)
-      logger.info(`Processing payment: ${amount} ${currency}`);
-      return {
-        success: true,
-        transactionId: `TXN_${Date.now()}`,
-      };
-    } catch (error) {
-      logger.error("Error processing payment:", error);
-      return {
-        success: false,
-        error: "Payment processing failed",
-      };
-    }
+    void amount;
+    void currency;
+    void paymentMethod;
+    void metadata;
+    logger.error("Payment processing is unavailable because no approved payment gateway is configured");
+    return {
+      success: false,
+      error: "Payment provider is not configured",
+    };
   }
 }
 

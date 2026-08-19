@@ -10,6 +10,8 @@ import { serveStatic, setupVite } from "./vite";
 import { documentUploadRouter } from "../document-upload.routes";
 import { brandingUploadRouter } from "../branding-upload.routes";
 import { healthRouter } from "../health.routes";
+import { assertProductionEnv } from "./production-env";
+import { requestIdMiddleware } from "./request-id";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -31,8 +33,10 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  assertProductionEnv();
   const app = express();
   const server = createServer(app);
+  app.use(requestIdMiddleware);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));

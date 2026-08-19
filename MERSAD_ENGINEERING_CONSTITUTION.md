@@ -510,3 +510,29 @@
 
 ---
 
+
+
+# 22. ملحق FINAL 90%+ GATE — 2026-08-19
+
+تم تنفيذ تعليمات مصفوفة remediation على المستودع الفعلي، لا على المصفوفة وحدها. أضيفت دورة حياة المستندات بإصدار وسلسلة `previousVersionId` وSHA-256 وحالة `scanStatus` و`retentionUntil` وفهارسها عبر migration `0009_tidy_ben_parker.sql`. أضيف حد تنزيل لا يصدر رابطًا للمستند pending أو quarantined أو المنتهي، وحد scanner خارجي fail-safe لا يدعي نتيجة نظيفة عند غياب المزود.
+
+اكتملت تحسينات Universal Search بإدخال نافذة جلب محدودة، pagination مستقرة، وترتيب exact/prefix، مع استمرار `lawFirmId` و`isDeleted` في الاستعلام. وأضيفت حدود قصوى للقوائم الداخلية غير المحدودة. كما أضيفت خدمة `deadline.service.ts` التي تنفذ warning window للجلسات، وتستخدم claim ذريًا عبر `notificationSent` لمنع التذكيرات المكررة عند تشغيل workers متزامنين، مع اختبار idempotency.
+
+أضيف runbook رسمي للنسخ والتحقق والاستعادة في `docs/MERSAD_BACKUP_RESTORE_RUNBOOK.md`. لا يُحتسب اختبار restore الإنتاجي منفذًا دون بيئة معتمدة، ولا تُخزن الأسرار في المستودع. كما أضيفت Arabic normalization واختبارات لها، مع إبقاء OCR/PDF الخارجي غير مدّعى وغير منفذ عند غياب مزود.
+
+| البند | الحالة بعد FINAL GATE |
+|---|---|
+| P0 authentication/authorization/tenant/document baseline | VERIFIED ومختبر |
+| Document lifecycle | repository architecture منفذة؛ scanner الخارجي BLOCKED فقط |
+| Observability | health/readiness/request IDs منفذة؛ alerts الخارجية نقطة تكامل غير مفعلة |
+| Database integrity | migrations وفهارس وapproval transaction منفذة؛ تدقيق FK الإنتاجي الشامل يحتاج قاعدة معتمدة |
+| Universal Search | tenant-scoped، محدود، ranked، pagination، ومختبر عقديًا |
+| Backup/restore | runbook والتحقق البرمجي منفذان؛ production drill BLOCKED بالبيئة |
+| Pagination | cases/clients/search كاملة، والقوائم الداخلية capped عند 100 |
+| Deadline engine | service وclaim/idempotency tests منفذة؛ scheduler production binding مطلوب |
+| Client Portal | BLOCKED عمدًا حتى اعتماد client identity ونطاق البيانات |
+| Arabic/RTL | normalization منفذة؛ OCR/PDF والقبول البصري الخارجي BLOCKED |
+| MFA/password reset | BLOCKED بسبب capabilities الهوية؛ لم يُدخل password system محلي غير آمن |
+| AI | NOT STARTED، خارج أولوية الإصلاح الأمني |
+
+بوابات القبول الأخيرة ناجحة: `pnpm check`، و`pnpm test` بنتيجة **132 اختبارًا ناجحًا و30 متخطيًا** لغياب `DATABASE_URL`، و`pnpm build`، و`git diff --check`. وفق تعريف المصفوفة المحافظ، أصبحت **22 من 24 finding = 91.67%** VERIFIED/IMPLEMENTED أو BLOCKED بشكل مشروع. لا يُعلن هذا Production Ready قبل تطبيق migrations في بيئة معتمدة، وتشغيل MySQL integration وrestore drill، وتوفير scanner/OCR/alerts/identity capabilities المطلوبة.
