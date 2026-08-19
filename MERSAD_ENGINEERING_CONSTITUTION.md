@@ -536,3 +536,49 @@
 | AI | NOT STARTED، خارج أولوية الإصلاح الأمني |
 
 بوابات القبول الأخيرة ناجحة: `pnpm check`، و`pnpm test` بنتيجة **132 اختبارًا ناجحًا و30 متخطيًا** لغياب `DATABASE_URL`، و`pnpm build`، و`git diff --check`. وفق تعريف المصفوفة المحافظ، أصبحت **22 من 24 finding = 91.67%** VERIFIED/IMPLEMENTED أو BLOCKED بشكل مشروع. لا يُعلن هذا Production Ready قبل تطبيق migrations في بيئة معتمدة، وتشغيل MySQL integration وrestore drill، وتوفير scanner/OCR/alerts/identity capabilities المطلوبة.
+
+## 23. ملحق التدقيق الجنائي النهائي — 2026-08-19
+
+### قرار الإطلاق
+
+بعد تدقيق جنائي مستقل للمستودع كاملًا، لا تُعد منصة MERSAD جاهزة للإطلاق على بيانات محاماة أو عملاء حقيقية. التصنيف الإلزامي الحالي هو:
+
+> **NOT READY — ممنوع الإطلاق قبل إغلاق Findings الأمنية P1/High وإثبات قاعدة البيانات والإعدادات الإنتاجية باختبارات فعلية.**
+
+نجاح `pnpm check` و`pnpm test` و`pnpm build` لا يثبت غياب الثغرات، ولا يثبت سلامة MySQL/MariaDB، ولا يعوض اختبار اختراق مستقل.
+
+### Findings الأمنية الجديدة
+
+| ID | الخطورة | finding | الدليل | شرط الإغلاق |
+|---|---|---|---|---|
+| F-001 | Critical/High | غياب CSRF وOrigin validation على Cookie-authenticated mutations، خصوصًا multipart branding/document upload | `server/_core/index.ts`, `server/_core/cookies.ts`, `client/src/main.tsx`, `server/branding-upload.routes.ts`, `server/document-upload.routes.ts` | CSRF token مرتبط بالجلسة أو Origin allow-list موثوقة، مع browser tests لكل tRPC وmultipart mutation |
+| F-002 | High | OAuth callback لا يثبت `state/nonce` server-side مرتبطًا بطلب بدء الدخول | `server/_core/oauth.ts` | state/nonce عشوائي قصير العمر، request-bound، وredirect URI allow-list ثابت |
+| F-003 | High | كتابة `meQuery.data` إلى `localStorage` وعدم مسحه في logout | `client/src/_core/hooks/useAuth.ts` | إزالة تخزين user/session data من browser storage ومراجعة كل storage |
+| F-004 | High | عمليات حساسة محمية بـ`lawFirmProcedure` دون least-privilege role policy | `server/routers.ts`, `server/_core/trpc.ts` | policy server-side لكل role على update/delete/KYC/download، مع اختبارات denial |
+| F-005 | High | Activity export وقراءة activity التفصيلية متاحة لكل عضو مكتب | `server/activity.routes.ts` | قصرها على admin/manager أو policy موثقة، redaction، pagination، وحد أقصى آمن |
+| F-006 | High | IP audit يعتمد على `x-forwarded-for` غير موثق كمصدر موثوق | routers/routes متعددة | trusted proxy configuration واستخراج server-side موثق |
+| F-007 | High | CSV export لا يهرب quotes/CRLF ولا يمنع formula injection | `server/activity.service.ts` | RFC-compliant escaping وneutralization للقيم الخطرة واختبار Excel-compatible |
+| F-008 | High | فشل audit لا يفشل العملية ولا يوجد durable outbox/transaction coupling | `server/activity.service.ts` | transactional outbox أو transaction ذرية، وسياسة fail-closed للأفعال الحساسة |
+| F-009 | High | migrations وorphan preflight لم تُثبت على MySQL/MariaDB حقيقية؛ 30 اختبارًا متخطٍ | `drizzle.config.ts`, test output | قاعدة اختبارية معتمدة، preflight = zero، migrations من الصفر والترقية، وكل الاختبارات ناجحة |
+| F-010 | High | ledger بلا FKs مالية كاملة ولا transaction تسوية invoice/duePayment/ledger | `drizzle/schema.ts`, ledger router/db | FKs وcross-tenant integrity، state machine وتسوية ذرية واختبارات concurrent |
+| F-011 | Medium/High | notification/activity policy غير موحدة مع حساسية البيانات | notification/activity routes | مصفوفة صلاحيات موحدة حسب نوع البيانات |
+
+### Findings قاعدة البيانات والتشغيل
+
+أضيفت الملاحظات التالية إلى بوابة قاعدة البيانات: جداول `projects`, `courtSessions`, `tasks`, `timesheets`, `expenses`, `duePayments`, `invoices`, و`legalServiceRequests` تحتوي علاقات معرفات لا تملك كلها FKs كاملة؛ أرقام `matterNumber/caseNumber/projectNumber/invoiceNumber` فريدة على مستوى الجدول بدل uniqueness مركب مع `lawFirmId`؛ بعض دوال DB تخلط outage مع no-data بإرجاع `[]/undefined/null`؛ بعض استعلامات audit لا تحمل `lawFirmId` إلى طبقة البيانات؛ وتحديثات الموارد تعتمد في بعض المواضع على فحص Router قبل الكتابة بدل tenant-qualified update ذري.
+
+تم تسجيل أن `ledgerEntries` الحالي append-only وidempotent، لكنه لا يحتوي FKs كاملة لـ`matterId/invoiceId/duePaymentId/createdById`، ولا يربط انتقالات invoice/duePayment والتحصيل الحقيقي في transaction واحدة. لذلك P1-007 ليس مكتملًا ماليًا رغم وجود ledger داخلي.
+
+### Findings runtime والواجهة والاعتماديات
+
+لا توجد في bootstrap الرئيسي حماية صريحة كافية لـsecurity headers وCORS وrate limiting وOrigin policy وroute-specific body limits. JWT طويل الأجل ويحتاج مراجعة rotation/idle timeout/session inventory. يحتوي `server/security.service.ts` كودًا قديمًا غير صالح للاستخدام المحلي: PBKDF2 منخفض التكلفة ومقارنة غير constant-time وAES-CBC بمفتاح padded/قد يكون فارغًا ودون authentication tag؛ يجب حذفه أو إصلاحه قبل أي local-password feature.
+
+يوجد bootstrap بديل `server/index.ts` يختلف عن `_core/index.ts` ويحتوي credentialed CORS stub و`/api/test-email` public، ما يثبت runtime drift يجب حسمه أو حذفه. توجد أيضًا صفحات dead/demo مثل `AdminApprovalPage.tsx` التي تستخدم `mockRequests` و`setTimeout` بدل API، و`DashboardLayout.tsx` الذي يحتوي `Page 1`, `Page 2`, و`/some-path`. هي ليست routes حالية وفق `client/src/App.tsx` لكنها خطر regression وخداع عند إعادة الربط.
+
+لا تزال dependency audit تُظهر 6 High advisories ضمن 45 advisory إجماليًا، ولا يجوز إعلان Production Ready قبل إزالتها أو اعتماد mitigation موثقًا. كما أن Client Portal وMFA/Password Reset وArabic OCR/PDF وrestore drill وproduction scheduler وscanner الخارجي غير مكتملة.
+
+### بوابة منع الإطلاق
+
+لا يجوز رفع التصنيف إلى `RELEASE CANDIDATE` قبل إغلاق F-001 وF-002 وF-004 وF-005 وF-008 وF-009 وF-010، ثم إجراء اختبار اختراق خارجي. ولا يجوز إعلان `PRODUCTION READY` قبل اختبار Firm A/Firm B على قاعدة حقيقية، scanner معتمد، restore drill، مراجعة proxy/TLS/headers، معالجة High advisories، ومراجعة مستقلة لإدارة بيانات العملاء.
+
+مرجع التقرير التفصيلي: `docs/MERSAD_FINAL_FORENSIC_AUDIT.md`.

@@ -1,0 +1,296 @@
+
+=== git diff --check ===
+exit=0
+
+=== pnpm check ===
+
+> law-firm-management-app@1.0.0 check /home/ubuntu/law-firm-management
+> tsc --noEmit
+
+exit=0
+
+=== pnpm test ===
+
+> law-firm-management-app@1.0.0 test /home/ubuntu/law-firm-management
+> vitest run
+
+
+ RUN  v3.2.7 /home/ubuntu/law-firm-management
+
+ ✓ server/security.test.ts (33 tests) 22ms
+stdout | server/cache.test.ts > Performance Monitor > Async Measurement > should measure async function execution time
+[PERF] test-async: 51.00ms
+
+stdout | server/cache.test.ts > Performance Monitor > Sync Measurement > should measure sync function execution time
+[PERF] test-sync: 2.90ms
+
+stdout | server/cache.test.ts > Performance Monitor > Timer > should create and end timer
+[PERF] test-timer: 1.52ms
+
+ ✓ server/cache.test.ts (23 tests) 415ms
+stdout | server/activity.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/activity.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+stdout | server/clients.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/clients.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+stdout | server/cases.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/cases.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ↓ server/cases.test.ts (8 tests | 8 skipped)
+ ↓ server/clients.test.ts (9 tests | 9 skipped)
+ ↓ server/activity.test.ts (13 tests | 13 skipped)
+stdout | server/invoices.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/invoices.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/invoices.test.ts (9 tests) 4ms
+stdout | server/registration.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/registration.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/registration.test.ts (5 tests) 12ms
+ ✓ server/branding-upload.integration.test.ts (4 tests) 52ms
+ ✓ server/document-upload.integration.test.ts (3 tests) 50ms
+stdout | server/invitations.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/invitations.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+stdout | server/auth.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/auth.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/invitations.test.ts (5 tests) 20ms
+ ✓ server/auth.test.ts (11 tests) 17ms
+stdout | server/document-security.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/document-security.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+stdout | server/branding.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/branding.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/document-security.test.ts (8 tests) 15ms
+ ✓ server/branding.test.ts (4 tests) 11ms
+stdout | server/tenant-isolation.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/tenant-isolation.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+stdout | server/admin.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/admin.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/tenant-isolation.test.ts (6 tests) 15ms
+ ✓ server/admin.test.ts (5 tests) 13ms
+stdout | server/ledger.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/ledger.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/deadline.service.test.ts (2 tests) 7ms
+ ✓ server/ledger.test.ts (4 tests) 8ms
+stderr | server/p1-remediation.test.ts > P1 remediation contracts > never reports an unconfigured payment as successful
+[error] Payment processing is unavailable because no approved payment gateway is configured
+
+ ✓ server/p1-remediation.test.ts (3 tests) 7ms
+ ✓ server/health.routes.test.ts (3 tests) 35ms
+ ✓ server/email.service.test.ts (3 tests) 4ms
+stdout | server/session-revocation.test.ts > OAuth session revocation > issues a jti and rejects the session after server-side revocation
+[OAuth] Initialized with baseURL:
+
+stderr | server/session-revocation.test.ts > OAuth session revocation > issues a jti and rejects the session after server-side revocation
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+stderr | server/session-revocation.test.ts > OAuth session revocation > issues a jti and rejects the session after server-side revocation
+[Auth] Session has been revoked
+
+ ✓ server/session-revocation.test.ts (1 test) 204ms
+ ✓ server/request-id.test.ts (2 tests) 5ms
+ ✓ server/arabic-normalization.test.ts (1 test) 3ms
+stdout | server/auth.logout.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/auth.logout.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/auth.logout.test.ts (1 test) 5ms
+stdout | server/dashboard.test.ts
+[OAuth] Initialized with baseURL:
+
+stderr | server/dashboard.test.ts
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+
+ ✓ server/dashboard.test.ts (2 tests) 6ms
+
+ Test Files  22 passed | 3 skipped (25)
+      Tests  138 passed | 30 skipped (168)
+   Start at  18:00:58
+   Duration  4.13s (transform 740ms, setup 0ms, collect 11.11s, tests 931ms, environment 5ms, prepare 2.40s)
+
+exit=0
+
+=== pnpm build ===
+
+> law-firm-management-app@1.0.0 build /home/ubuntu/law-firm-management
+> vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 2462 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/public/index.html                 367.95 kB │ gzip: 105.65 kB
+../dist/public/assets/index-GCylllFW.css  128.74 kB │ gzip:  20.27 kB
+../dist/public/assets/react-B-V5UcMf.js    11.44 kB │ gzip:   4.11 kB
+../dist/public/assets/ui-bT4Bw9H5.js       68.01 kB │ gzip:  24.82 kB
+../dist/public/assets/charts-ByZ98uUZ.js  420.42 kB │ gzip: 113.10 kB
+../dist/public/assets/index-CxG8zw-w.js   566.62 kB │ gzip: 162.10 kB
+✓ built in 6.45s
+
+  dist/index.js  133.7kb
+
+⚡ Done in 11ms
+exit=0
+
+=== pnpm audit --audit-level=high ===
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Rollup 4 has Arbitrary File Write via Path Traversal   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ rollup                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <4.59.0                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.59.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @builder.io/vite-plugin-jsx-loc@0.1.1 > vite@7.3.6 │
+│                     │ > rollup@4.52.4                                        │
+│                     │                                                        │
+│                     │ . > @tailwindcss/vite@4.3.3 > vite@7.3.6 >             │
+│                     │ rollup@4.52.4                                          │
+│                     │                                                        │
+│                     │ . > @vitejs/plugin-react@5.0.4 > vite@7.3.6 >          │
+│                     │ rollup@4.52.4                                          │
+│                     │                                                        │
+│                     │ ... Found 7 paths, run `pnpm why rollup` for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-mw96-cpmx-2vgc      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ path-to-regexp vulnerable to Regular Expression Denial │
+│                     │ of Service via multiple route parameters               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ path-to-regexp                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <0.1.13                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=0.1.13                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > express@4.21.2 > path-to-regexp@0.1.12             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-37ch-88jc-xwx2      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ lodash vulnerable to Code Injection via `_.template`   │
+│                     │ imports key names                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ lodash-es                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <=4.17.23                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.18.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > streamdown@1.4.0 > mermaid@11.12.0 >               │
+│                     │ @mermaid-js/parser@0.6.3 > langium@3.3.1 >             │
+│                     │ chevrotain@11.0.3 > @chevrotain/cst-dts-gen@11.0.3 >   │
+│                     │ @chevrotain/gast@11.0.3 > lodash-es@4.17.21            │
+│                     │                                                        │
+│                     │ . > streamdown@1.4.0 > mermaid@11.12.0 >               │
+│                     │ @mermaid-js/parser@0.6.3 > langium@3.3.1 >             │
+│                     │ chevrotain@11.0.3 > @chevrotain/cst-dts-gen@11.0.3 >   │
+│                     │ lodash-es@4.17.21                                      │
+│                     │                                                        │
+│                     │ . > streamdown@1.4.0 > mermaid@11.12.0 >               │
+│                     │ @mermaid-js/parser@0.6.3 > langium@3.3.1 >             │
+│                     │ chevrotain@11.0.3 > @chevrotain/gast@11.0.3 >          │
+│                     │ lodash-es@4.17.21                                      │
+│                     │                                                        │
+│                     │ ... Found 11 paths, run `pnpm why lodash-es` for more  │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-r5fr-rjxr-66jc      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ lodash vulnerable to Code Injection via `_.template`   │
+│                     │ imports key names                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ lodash                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <=4.17.23                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.18.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > recharts@2.15.4 > lodash@4.17.21                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-r5fr-rjxr-66jc      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ form-data: CRLF injection in form-data via unescaped   │
+│                     │ multipart field names and filenames                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ form-data                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <4.0.6                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.0.6                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > @types/supertest@7.2.1 > @types/superagent@8.1.11  │
+│                     │ > form-data@4.0.4                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-hmw2-7cc7-3qxx      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ nanoid: non-secure generators can loop indefinitely    │
+│                     │ with negative size                                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ nanoid                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.0.0 <5.1.16                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=5.1.16                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . > nanoid@5.1.6                                       │
+│                     │                                                        │
+│                     │ . > vite-plugin-manus-runtime@0.0.57 > nanoid@5.1.6    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-28wg-ghj8-5hjv      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+45 vulnerabilities found
+Severity: 8 low | 31 moderate | 6 high
+exit=1

@@ -66,3 +66,23 @@
 ## Evidence update — continuation cycle
 
 تم توسيع `server/tenant-isolation.test.ts` إلى 6 اختبارات ناجحة تشمل منع قراءة/حذف عميل غير تابع للمكتب ورفض إنشاء قضية بعلاقات غير متاحة. كما ثبتت مزامنة الاعتماديات عبر `pnpm install --frozen-lockfile`، وأثبت `pnpm audit --audit-level=critical` عدم وجود Critical advisories. بقيت High advisories المحدودة في P2-008 مصنفة `BLOCKED upstream`، ولم تُحتسب كإصلاح كامل.
+
+## Findings جنائية مستقلة إضافية — لا تُخفى داخل النسبة التاريخية
+
+التدقيق النهائي كشف Findings جديدة عالية الأثر لم تكن ضمن denominator الأصلي ذي الـ28 بندًا. للحفاظ على النزاهة، تبقى نسبة **26/28 = 92.86%** تاريخية لدورة remediation السابقة، ولا يجوز عرضها كنسبة الجاهزية الحالية. يجب إعادة حساب النسبة بعد تحويل البنود التالية إلى عناصر مصفوفة رسمية وإغلاقها أو توثيق حظرها:
+
+| ID | Severity | Finding | Evidence | Current status | Release impact |
+|---|---|---|---|---|---|
+| F-001 | Critical/High | غياب CSRF وOrigin validation على Cookie-authenticated mutations، خاصة multipart uploads | `server/_core/index.ts`, `server/_core/cookies.ts`, branding/document routes | OPEN | يمنع الإطلاق |
+| F-002 | High | OAuth callback بلا server-side state/nonce validation | `server/_core/oauth.ts` | OPEN | يمنع الإطلاق |
+| F-003 | High | user/session object يُكتب إلى localStorage ولا يُمسح في logout | `client/src/_core/hooks/useAuth.ts` | OPEN | يمنع الإطلاق |
+| F-004 | High | عمليات حساسة تعتمد على tenant membership دون least-privilege role policy | `server/routers.ts`, `server/_core/trpc.ts` | OPEN | يمنع الإطلاق |
+| F-005 | High | activity export/تفاصيل التدقيق متاحة لكل عضو مكتب | `server/activity.routes.ts` | OPEN | يمنع الإطلاق |
+| F-006 | High | `x-forwarded-for` يُستخدم كدليل IP دون trusted-proxy contract | routers/routes متعددة | OPEN | يضعف الدليل الجنائي |
+| F-007 | High | CSV export معرض لـformula injection وescaping غير RFC-compliant | `server/activity.service.ts` | OPEN | يمنع export الآمن |
+| F-008 | High | audit insert غير ذري مع العملية وفشله لا يفشل mutation | `server/activity.service.ts` | OPEN | يمنع chain of custody |
+| F-009 | High | MySQL migrations/preflight/integration غير مثبتة؛ 30 اختبارًا متخطٍ | `drizzle.config.ts`, test output | OPEN/BLOCKED ENV | يمنع production sign-off |
+| F-010 | High | ledger لا يملك FKs مالية كاملة ولا تسوية transaction حقيقية | `drizzle/schema.ts`, ledger code | OPEN | يمنع financial production sign-off |
+| F-011 | Medium/High | سياسات activity/notification لا تعكس حساسية البيانات بشكل موحد | routes/services | OPEN | يحتاج policy review |
+
+> **قاعدة جديدة:** لا يجوز رفع readiness بسبب نسبة 26/28 ما دامت Findings F-001 إلى F-010 مفتوحة. التقرير المرجعي الكامل لهذه البنود هو `docs/MERSAD_FINAL_FORENSIC_AUDIT.md`، وقرار الإطلاق الحالي `NOT READY`.
