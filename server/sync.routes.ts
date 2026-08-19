@@ -4,7 +4,8 @@
  */
 
 import { z } from 'zod';
-import { publicProcedure, router } from './_core/trpc';
+import { protectedProcedure, publicProcedure, router } from './_core/trpc';
+import { getDocumentById } from './db';
 import { syncService } from './sync.service';
 import { TRPCError } from '@trpc/server';
 
@@ -253,7 +254,7 @@ export const syncRouter = router({
    * Broadcast document update
    * بث تحديث المستند
    */
-  broadcastDocumentUpdate: publicProcedure
+  broadcastDocumentUpdate: protectedProcedure
     .input(
       z.object({
         firmId: z.number().min(1),
@@ -264,15 +265,19 @@ export const syncRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        if (!ctx.user) {
+        if (!ctx.user.lawFirmId || ctx.user.lawFirmId !== input.firmId) {
           throw new TRPCError({
-            code: 'UNAUTHORIZED',
-            message: 'يجب تسجيل الدخول',
+            code: 'FORBIDDEN',
+            message: 'لا يمكنك بث تحديثات خارج مكتبك',
           });
+        }
+        const document = await getDocumentById(input.documentId, ctx.user.lawFirmId);
+        if (!document) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'المستند غير موجود' });
         }
 
         const event = await syncService.broadcastDocumentUpdate(
-          input.firmId,
+          ctx.user.lawFirmId,
           input.documentId,
           input.action,
           ctx.user.id,
@@ -285,6 +290,7 @@ export const syncRouter = router({
           message: 'تم بث تحديث المستند بنجاح',
         };
       } catch (error: any) {
+        if (error instanceof TRPCError) throw error;
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: error.message || 'فشل بث التحديث',

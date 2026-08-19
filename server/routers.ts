@@ -12,11 +12,15 @@ import {
   getUserNotifications, createNotification, markNotificationAsRead,
   getAuditLogsByCaseId, createAuditLog,
   getLawFirmById, getUsersByLawFirm, getUserById, getMatterById,
+  getDocumentById,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
 import { activityRouter } from "./activity.routes";
 import { getDashboardSummary } from "./dashboard.service";
+import { storageGet } from "./storage";
+import { toSafeDocumentMetadata } from "./document-security";
+import { logActivity } from "./activity.service";
 
 // ============ PROCEDURES ============
 
@@ -274,7 +278,42 @@ export const appRouter = router({
       if (!caseData || caseData.lawFirmId !== ctx.lawFirmId) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-      return getDocumentsByCaseId(input);
+      const documents = await getDocumentsByCaseId(input, ctx.lawFirmId);
+      return documents.map(toSafeDocumentMetadata);
+    }),
+
+    delete: lawFirmProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
+      const document = await getDocumentById(input, ctx.lawFirmId);
+      if (!document) throw new TRPCError({ code: "NOT_FOUND" });
+      await deleteDocument(document.id, ctx.lawFirmId);
+      await logActivity({
+        firmId: ctx.lawFirmId,
+        userId: ctx.user.id,
+        actionType: "delete",
+        entityType: "document",
+        entityId: document.id,
+        entityName: document.fileName,
+      });
+      return { success: true } as const;
+    }),
+
+    getDownloadUrl: lawFirmProcedure.input(z.number().int().positive()).query(async ({ input, ctx }) => {
+      const document = await getDocumentById(input, ctx.lawFirmId);
+      if (!document) throw new TRPCError({ code: "NOT_FOUND" });
+      const signed = await storageGet(document.s3Key);
+      await logActivity({
+        firmId: ctx.lawFirmId,
+        userId: ctx.user.id,
+        actionType: "download",
+        entityType: "document",
+        entityId: document.id,
+        entityName: document.fileName,
+      });
+      return {
+        document: toSafeDocumentMetadata(document),
+        url: signed.url,
+        expiresInSeconds: 300,
+      };
     }),
   }),
 

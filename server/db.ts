@@ -317,11 +317,23 @@ export async function createCourtSession(data: Omit<CourtSession, 'id' | 'create
 
 // ============ DOCUMENT QUERIES ============
 
-export async function getDocumentsByCaseId(caseId: number): Promise<Document[]> {
+export async function getDocumentsByCaseId(caseId: number, lawFirmId: number): Promise<Document[]> {
   const db = await getDb();
   if (!db) return [];
 
-  return db.select().from(documents).where(eq(documents.caseId, caseId)).orderBy(desc(documents.createdAt));
+  return db.select().from(documents)
+    .where(and(eq(documents.caseId, caseId), eq(documents.lawFirmId, lawFirmId)))
+    .orderBy(desc(documents.createdAt));
+}
+
+export async function getDocumentById(id: number, lawFirmId: number): Promise<Document | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const rows = await db.select().from(documents)
+    .where(and(eq(documents.id, id), eq(documents.lawFirmId, lawFirmId)))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function createDocument(data: Omit<Document, 'id' | 'createdAt' | 'updatedAt'>): Promise<Document> {
@@ -335,11 +347,11 @@ export async function createDocument(data: Omit<Document, 'id' | 'createdAt' | '
   return doc[0];
 }
 
-export async function deleteDocument(id: number): Promise<void> {
+export async function deleteDocument(id: number, lawFirmId: number): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.delete(documents).where(eq(documents.id, id));
+  await db.delete(documents).where(and(eq(documents.id, id), eq(documents.lawFirmId, lawFirmId)));
 }
 
 // ============ NOTIFICATION QUERIES ============

@@ -301,11 +301,12 @@ export class StorageService {
     destination: string
   ): Promise<{ success: boolean; url?: string; error?: string }> {
     try {
-      // Using AWS S3, Google Cloud Storage, or Azure Blob Storage
-      logger.info(`Uploading file to cloud storage: ${destination}`);
+      void filePath;
+      void destination;
+      logger.info("Legacy StorageService.uploadFile is disabled; use the approved storage proxy instead");
       return {
-        success: true,
-        url: `https://storage.example.com/${destination}`,
+        success: false,
+        error: "Storage provider is not configured for this legacy service",
       };
     } catch (error) {
       logger.error("Error uploading file to cloud storage:", error);
@@ -322,7 +323,8 @@ export class StorageService {
    */
   async downloadFile(fileUrl: string): Promise<Buffer | null> {
     try {
-      logger.info(`Downloading file from cloud storage: ${fileUrl}`);
+      void fileUrl;
+      logger.info("Legacy StorageService.downloadFile is disabled; use an authorized signed URL instead");
       return null;
     } catch (error) {
       logger.error("Error downloading file from cloud storage:", error);
