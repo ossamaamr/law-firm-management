@@ -1,4 +1,5 @@
 import { COOKIE_NAME } from "@shared/const";
+import { sql } from "drizzle-orm";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
@@ -13,6 +14,7 @@ import {
   getAuditLogsByCaseId, createAuditLog,
   getLawFirmById, getUsersByLawFirm, getUserById, getMatterById,
   getDocumentById, getBrandingSettings, upsertBrandingSettings,
+  updateUserRoleInLawFirm, getDb,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
@@ -21,6 +23,7 @@ import { getDashboardSummary } from "./dashboard.service";
 import { storageGet } from "./storage";
 import { toSafeDocumentMetadata } from "./document-security";
 import { logActivity } from "./activity.service";
+import { ENV } from "./_core/env";
 
 // ============ PROCEDURES ============
 
@@ -39,6 +42,13 @@ const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 });
 
 const brandingAdminProcedure = lawFirmProcedure.use(async ({ ctx, next }) => {
+  if (ctx.user.role !== "admin" && ctx.user.role !== "manager") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+  return next({ ctx });
+});
+
+const adminLawFirmProcedure = lawFirmProcedure.use(async ({ ctx, next }) => {
   if (ctx.user.role !== "admin" && ctx.user.role !== "manager") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
   }
@@ -72,6 +82,90 @@ export const appRouter = router({
         to: z.coerce.date().optional(),
       }).optional())
       .query(({ input, ctx }) => getDashboardSummary(ctx.lawFirmId, input ?? {})),
+  }),
+
+  admin: router({
+    users: router({
+      list: adminLawFirmProcedure.query(async ({ ctx }) => {
+        const users = await getUsersByLawFirm(ctx.lawFirmId);
+        return users.map(user => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          lawFirmId: user.lawFirmId,
+          createdAt: user.createdAt,
+          lastSignedIn: user.lastSignedIn,
+        }));
+      }),
+      updateRole: adminLawFirmProcedure.input(z.object({
+        userId: z.number().int().positive(),
+        role: z.enum(["admin", "manager", "lawyer", "accountant", "user"]),
+      })).mutation(async ({ input, ctx }) => {
+        const target = await getUserById(input.userId);
+        if (!target || target.lawFirmId !== ctx.lawFirmId) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        if (target.id === ctx.user.id && input.role !== ctx.user.role) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "You cannot change your own role" });
+        }
+        if (ctx.user.role === "manager" && (input.role === "admin" || input.role === "manager")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Managers cannot assign administrative roles" });
+        }
+        if (target.role === "admin" && input.role !== "admin") {
+          const users = await getUsersByLawFirm(ctx.lawFirmId);
+          if (users.filter(user => user.role === "admin").length <= 1) {
+            throw new TRPCError({ code: "CONFLICT", message: "The firm must retain at least one admin" });
+          }
+        }
+
+        const updated = await updateUserRoleInLawFirm(input.userId, ctx.lawFirmId, input.role);
+        if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+        await logActivity({
+          firmId: ctx.lawFirmId,
+          userId: ctx.user.id,
+          actionType: "update",
+          entityType: "user_role",
+          entityId: updated.id,
+          entityName: updated.email || updated.name || String(updated.id),
+          changes: {
+            before: { role: target.role },
+            after: { role: updated.role },
+          },
+          ipAddress: ctx.req.headers["x-forwarded-for"] as string || undefined,
+        });
+        return {
+          id: updated.id,
+          name: updated.name,
+          email: updated.email,
+          role: updated.role,
+          lawFirmId: updated.lawFirmId,
+          createdAt: updated.createdAt,
+          lastSignedIn: updated.lastSignedIn,
+        };
+      }),
+    }),
+    health: adminLawFirmProcedure.query(async () => {
+      const startedAt = Date.now();
+      const db = await getDb();
+      let database: "ok" | "unavailable" | "error" = "unavailable";
+      if (db) {
+        try {
+          await db.execute(sql`SELECT 1`);
+          database = "ok";
+        } catch {
+          database = "error";
+        }
+      }
+      const storage = ENV.forgeApiUrl && ENV.forgeApiKey ? "configured" : "unconfigured";
+      return {
+        status: database === "ok" && storage === "configured" ? "healthy" : "degraded",
+        database,
+        storage,
+        environment: process.env.NODE_ENV || "development",
+        responseTimeMs: Date.now() - startedAt,
+      } as const;
+    }),
   }),
 
   branding: router({

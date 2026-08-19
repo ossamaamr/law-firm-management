@@ -110,6 +110,21 @@ export async function getUsersByLawFirm(lawFirmId: number): Promise<User[]> {
   return db.select().from(users).where(eq(users.lawFirmId, lawFirmId));
 }
 
+export async function updateUserRoleInLawFirm(
+  userId: number,
+  lawFirmId: number,
+  role: User["role"],
+): Promise<User | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(users)
+    .set({ role })
+    .where(and(eq(users.id, userId), eq(users.lawFirmId, lawFirmId)));
+  return getUserById(userId);
+}
+
 // ============ LAW FIRM QUERIES ============
 
 export async function getLawFirmById(id: number): Promise<LawFirm | undefined> {

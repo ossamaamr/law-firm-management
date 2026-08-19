@@ -54,8 +54,23 @@ export const CasEngineDashboard: React.FC = () => {
   const dashboardQuery = trpc.dashboard.summary.useQuery(undefined, {
     enabled: Boolean(user?.lawFirmId),
   });
+  const canManageAdmin = user?.role === 'admin' || user?.role === 'manager';
   const brandingQuery = trpc.branding.get.useQuery(undefined, {
     enabled: Boolean(user?.lawFirmId),
+  });
+  const adminUsersQuery = trpc.admin.users.list.useQuery(undefined, {
+    enabled: Boolean(user?.lawFirmId && canManageAdmin),
+  });
+  const adminHealthQuery = trpc.admin.health.useQuery(undefined, {
+    enabled: Boolean(user?.lawFirmId && canManageAdmin),
+    refetchInterval: 60_000,
+  });
+  const updateRoleMutation = trpc.admin.users.updateRole.useMutation({
+    onSuccess: async () => {
+      await adminUsersQuery.refetch();
+      toast.success(language === 'ar' ? 'تم تحديث دور المستخدم' : 'User role updated');
+    },
+    onError: error => toast.error(error.message || (language === 'ar' ? 'تعذر تحديث الدور' : 'Unable to update role')),
   });
   const brandingMutation = trpc.branding.update.useMutation({
     onSuccess: async () => {
@@ -82,7 +97,7 @@ export const CasEngineDashboard: React.FC = () => {
   }, [brandingQuery.data]);
 
   const summary = dashboardQuery.data;
-  const canManageBranding = user?.role === 'admin' || user?.role === 'manager';
+  const canManageBranding = canManageAdmin;
   const [logoUploadPending, setLogoUploadPending] = useState(false);
 
   const uploadBrandingLogo = async (file: File) => {
@@ -572,6 +587,91 @@ export const CasEngineDashboard: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {activeTab === 'settings' && canManageAdmin && (
+            <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]" dir={isRTL ? 'rtl' : 'ltr'}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>{language === 'ar' ? 'إدارة مستخدمي المكتب' : 'Firm user management'}</CardTitle>
+                  <CardDescription>
+                    {language === 'ar' ? 'تُعرض حسابات مكتبك فقط. تغيير الأدوار يخضع لقيود الخادم وسجل التدقيق.' : 'Only your firm users are shown. Role changes are server-guarded and audited.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {adminUsersQuery.isLoading ? (
+                    <p className="text-sm text-muted-foreground">{language === 'ar' ? 'جارٍ تحميل المستخدمين…' : 'Loading users…'}</p>
+                  ) : adminUsersQuery.data?.length ? (
+                    <div className="overflow-x-auto rounded-lg border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground">
+                          <tr>
+                            <th className="p-3 text-start font-medium">{language === 'ar' ? 'المستخدم' : 'User'}</th>
+                            <th className="p-3 text-start font-medium">{language === 'ar' ? 'الدور' : 'Role'}</th>
+                            <th className="p-3 text-start font-medium">{language === 'ar' ? 'آخر دخول' : 'Last sign-in'}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {adminUsersQuery.data.map(firmUser => (
+                            <tr key={firmUser.id} className="border-t">
+                              <td className="p-3">
+                                <div className="font-medium">{firmUser.name || '—'}</div>
+                                <div className="text-xs text-muted-foreground" dir="ltr">{firmUser.email || '—'}</div>
+                              </td>
+                              <td className="p-3">
+                                <select
+                                  className="h-9 rounded-md border bg-background px-2 text-sm"
+                                  value={firmUser.role}
+                                  disabled={firmUser.id === user?.id || updateRoleMutation.isPending || (user?.role === 'manager' && (firmUser.role === 'admin' || firmUser.role === 'manager'))}
+                                  onChange={event => updateRoleMutation.mutate({ userId: firmUser.id, role: event.target.value as 'admin' | 'manager' | 'lawyer' | 'accountant' | 'user' })}
+                                  aria-label={language === 'ar' ? `دور ${firmUser.name || firmUser.email || firmUser.id}` : `Role for ${firmUser.name || firmUser.email || firmUser.id}`}
+                                >
+                                  {(['admin', 'manager', 'lawyer', 'accountant', 'user'] as const).map(role => (
+                                    <option key={role} value={role} disabled={user?.role === 'manager' && (role === 'admin' || role === 'manager')}>
+                                      {language === 'ar' ? ({ admin: 'مسؤول', manager: 'مدير', lawyer: 'محامٍ', accountant: 'محاسب', user: 'مستخدم' }[role]) : role}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="p-3 text-muted-foreground" dir="ltr">
+                                {firmUser.lastSignedIn ? new Date(firmUser.lastSignedIn).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US') : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{language === 'ar' ? 'لا يوجد مستخدمون مرتبطون بالمكتب.' : 'No users are assigned to this firm.'}</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>{language === 'ar' ? 'صحة النظام' : 'System health'}</CardTitle>
+                  <CardDescription>{language === 'ar' ? 'مؤشرات تشغيلية مختصرة للمستخدم الإداري.' : 'A concise operational view for administrators.'}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {adminHealthQuery.isLoading ? (
+                    <p className="text-sm text-muted-foreground">{language === 'ar' ? 'جارٍ الفحص…' : 'Checking…'}</p>
+                  ) : adminHealthQuery.data ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">{language === 'ar' ? 'الحالة العامة' : 'Overall status'}</span>
+                        <Badge variant={adminHealthQuery.data.status === 'healthy' ? 'default' : 'secondary'}>{adminHealthQuery.data.status === 'healthy' ? (language === 'ar' ? 'سليم' : 'Healthy') : (language === 'ar' ? 'متدهور' : 'Degraded')}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm"><span>Database</span><span className="text-muted-foreground">{adminHealthQuery.data.database}</span></div>
+                      <div className="flex items-center justify-between text-sm"><span>Storage</span><span className="text-muted-foreground">{adminHealthQuery.data.storage}</span></div>
+                      <div className="flex items-center justify-between text-sm"><span>Environment</span><span className="text-muted-foreground" dir="ltr">{adminHealthQuery.data.environment}</span></div>
+                      <div className="flex items-center justify-between text-sm"><span>Response</span><span className="text-muted-foreground" dir="ltr">{adminHealthQuery.data.responseTimeMs} ms</span></div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">{language === 'ar' ? 'تعذر قراءة الصحة.' : 'Health data unavailable.'}</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       </main>
