@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 import { useActivity } from "@/hooks/useActivity";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,49 +56,43 @@ interface ActivitySummary {
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { activities, stats, isLoading } = useActivity();
+  const { activities } = useActivity();
   const [, navigate] = useLocation();
+  const summaryQuery = trpc.dashboard.summary.useQuery(undefined, {
+    enabled: Boolean(user?.lawFirmId),
+    retry: false,
+  });
+  const summary = summaryQuery.data;
 
-  // Mock data - replace with actual API calls
-  const dashboardStats: DashboardStats = useMemo(() => ({
-    totalCases: 24,
-    activeCases: 18,
-    totalClients: 45,
-    upcomingSessions: 7,
-    totalInvoices: 156,
-    pendingInvoices: 12,
-    totalExpenses: 45000,
-    teamMembers: 8,
-  }), []);
+  const dashboardStats: DashboardStats = {
+    totalCases: summary?.cases.total ?? 0,
+    activeCases: summary?.cases.open ?? 0,
+    totalClients: summary?.clients.total ?? 0,
+    upcomingSessions: summary?.upcomingSessions ?? 0,
+    totalInvoices: summary?.invoices.pendingCount ?? 0,
+    pendingInvoices: summary?.invoices.pendingCount ?? 0,
+    totalExpenses: summary?.expenses.totalAmount ?? 0,
+    teamMembers: 0,
+  };
 
-  // Activity summary data
-  const activitySummary: ActivitySummary[] = useMemo(() => [
-    { type: "تسجيل دخول", count: 45, percentage: 30 },
-    { type: "إنشاء قضية", count: 24, percentage: 16 },
-    { type: "تحديث ملف", count: 36, percentage: 24 },
-    { type: "إضافة موكل", count: 18, percentage: 12 },
-    { type: "أخرى", count: 27, percentage: 18 },
-  ], []);
+  const activitySummary: ActivitySummary[] = useMemo(() => {
+    const counts = (activities ?? []).reduce<Record<string, number>>((acc, activity) => {
+      const key = activity.actionType || "OTHER";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+    if (!total) return [];
+    return Object.entries(counts).map(([type, count]) => ({
+      type,
+      count,
+      percentage: Math.round((count / total) * 100),
+    }));
+  }, [activities]);
 
-  // Chart data for cases trend
-  const casesTrendData = useMemo(() => [
-    { month: "يناير", active: 12, closed: 3 },
-    { month: "فبراير", active: 14, closed: 5 },
-    { month: "مارس", active: 16, closed: 4 },
-    { month: "أبريل", active: 18, closed: 6 },
-    { month: "مايو", active: 20, closed: 7 },
-    { month: "يونيو", active: 18, closed: 8 },
-  ], []);
-
-  // Chart data for revenue
-  const revenueData = useMemo(() => [
-    { month: "يناير", revenue: 15000, expenses: 8000 },
-    { month: "فبراير", revenue: 18000, expenses: 9000 },
-    { month: "مارس", revenue: 22000, expenses: 10000 },
-    { month: "أبريل", revenue: 25000, expenses: 11000 },
-    { month: "مايو", revenue: 28000, expenses: 12000 },
-    { month: "يونيو", revenue: 32000, expenses: 13000 },
-  ], []);
+  // Trend data requires a dedicated time-series API; do not fabricate historical values.
+  const casesTrendData: Array<{ month: string; active: number; closed: number }> = [];
+  const revenueData: Array<{ month: string; revenue: number; expenses: number }> = [];
 
   // Pie chart colors
   const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
@@ -146,7 +141,7 @@ export function DashboardPage() {
     return typeMap[type] || type;
   };
 
-  if (isLoading) {
+  if (summaryQuery.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -223,12 +218,12 @@ export function DashboardPage() {
         {/* Revenue Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">الإيرادات</CardTitle>
+            <CardTitle className="text-sm font-medium">إجمالي المصروفات</CardTitle>
             <DollarSign className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(dashboardStats.totalExpenses / 1000).toFixed(1)}K
+              {dashboardStats.totalExpenses.toLocaleString("ar-SA")}
             </div>
             <p className="text-xs text-gray-600 mt-1">
               هذا الشهر
