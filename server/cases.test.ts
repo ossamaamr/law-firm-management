@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { createCaller } from "./_core/trpc";
+import { appRouter } from "./routers";
 import { getDb } from "./db";
 import { eq } from "drizzle-orm";
 import { cases, lawFirms, clients, matters, users } from "../drizzle/schema";
@@ -38,7 +38,7 @@ describeDatabase("Cases Router", () => {
       country: "Test Country",
       licenseNumber: `LIC-${Date.now()}`,
     });
-    testLawFirmId = (lawFirmResult as any)[0];
+    testLawFirmId = Number((lawFirmResult as any)[0]?.insertId ?? (lawFirmResult as any).insertId);
 
     // Create test user
     const userResult = await db!.insert(users).values({
@@ -49,7 +49,7 @@ describeDatabase("Cases Router", () => {
       lawFirmId: testLawFirmId,
       loginMethod: "test",
     });
-    testUserId = (userResult as any)[0];
+    testUserId = Number((userResult as any)[0]?.insertId ?? (userResult as any).insertId);
 
     // Create test client
     const clientResult = await db!.insert(clients).values({
@@ -63,7 +63,7 @@ describeDatabase("Cases Router", () => {
       kycStatus: "approved",
       conflictCheckStatus: "clear",
     });
-    testClientId = (clientResult as any)[0];
+    testClientId = Number((clientResult as any)[0]?.insertId ?? (clientResult as any).insertId);
 
     // Create test matter
     const matterResult = await db!.insert(matters).values({
@@ -78,7 +78,7 @@ describeDatabase("Cases Router", () => {
       feeAgreementType: "hourly",
       feeAmount: "5000",
     });
-    testMatterId = (matterResult as any)[0];
+    testMatterId = Number((matterResult as any)[0]?.insertId ?? (matterResult as any).insertId);
   });
 
   afterAll(async () => {
@@ -104,7 +104,7 @@ describeDatabase("Cases Router", () => {
 
   describe("cases.list", () => {
     it("should return cases for the user's law firm", async () => {
-      const caller = createCaller({
+      const caller = appRouter.createCaller({
         user: { ...mockUser, lawFirmId: testLawFirmId },
         req: { headers: {} } as any,
         res: {} as any,
@@ -115,7 +115,7 @@ describeDatabase("Cases Router", () => {
     });
 
     it("should filter cases by status", async () => {
-      const caller = createCaller({
+      const caller = appRouter.createCaller({
         user: { ...mockUser, lawFirmId: testLawFirmId },
         req: { headers: {} } as any,
         res: {} as any,
@@ -128,7 +128,7 @@ describeDatabase("Cases Router", () => {
 
   describe("cases.create", () => {
     it("should create a new case", async () => {
-      const caller = createCaller({
+      const caller = appRouter.createCaller({
         user: { ...mockUser, lawFirmId: testLawFirmId },
         req: { headers: {} } as any,
         res: {} as any,
@@ -158,7 +158,7 @@ describeDatabase("Cases Router", () => {
     });
 
     it("should require a case number", async () => {
-      const caller = createCaller({
+      const caller = appRouter.createCaller({
         user: { ...mockUser, lawFirmId: testLawFirmId },
         req: { headers: {} } as any,
         res: {} as any,
@@ -185,7 +185,7 @@ describeDatabase("Cases Router", () => {
     it("should retrieve a specific case", async () => {
       if (!testCaseId) {
         // Create a case first
-        const caller = createCaller({
+        const caller = appRouter.createCaller({
           user: { ...mockUser, lawFirmId: testLawFirmId },
           req: { headers: {} } as any,
           res: {} as any,
@@ -203,7 +203,7 @@ describeDatabase("Cases Router", () => {
         testCaseId = result.id;
       }
 
-      const caller = createCaller({
+      const caller = appRouter.createCaller({
         user: { ...mockUser, lawFirmId: testLawFirmId },
         req: { headers: {} } as any,
         res: {} as any,
@@ -216,7 +216,7 @@ describeDatabase("Cases Router", () => {
     });
 
     it("should throw NOT_FOUND for non-existent case", async () => {
-      const caller = createCaller({
+      const caller = appRouter.createCaller({
         user: { ...mockUser, lawFirmId: testLawFirmId },
         req: { headers: {} } as any,
         res: {} as any,
@@ -235,7 +235,7 @@ describeDatabase("Cases Router", () => {
     it("should update a case", async () => {
       if (!testCaseId) {
         // Create a case first
-        const caller = createCaller({
+        const caller = appRouter.createCaller({
           user: { ...mockUser, lawFirmId: testLawFirmId },
           req: { headers: {} } as any,
           res: {} as any,
@@ -253,7 +253,7 @@ describeDatabase("Cases Router", () => {
         testCaseId = result.id;
       }
 
-      const caller = createCaller({
+      const caller = appRouter.createCaller({
         user: { ...mockUser, lawFirmId: testLawFirmId },
         req: { headers: {} } as any,
         res: {} as any,
@@ -274,7 +274,7 @@ describeDatabase("Cases Router", () => {
   describe("cases.delete", () => {
     it("should soft delete a case", async () => {
       // Create a case specifically for deletion
-      const caller = createCaller({
+      const caller = appRouter.createCaller({
         user: { ...mockUser, lawFirmId: testLawFirmId },
         req: { headers: {} } as any,
         res: {} as any,

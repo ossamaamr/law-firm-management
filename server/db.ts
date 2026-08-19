@@ -14,6 +14,16 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
+function getInsertId(result: unknown): number {
+  const header = Array.isArray(result) ? result[0] : result;
+  const insertId = (header as { insertId?: unknown } | null | undefined)?.insertId;
+  const id = Number(insertId);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error("Insert did not return a valid insertId");
+  }
+  return id;
+}
+
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -170,7 +180,7 @@ export async function createUserInvitation(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(userInvitations).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const invitation = await db.select().from(userInvitations).where(eq(userInvitations.id, id)).limit(1);
   if (!invitation[0]) throw new Error("Failed to create invitation");
   return invitation[0];
@@ -231,7 +241,7 @@ export async function createRegistrationRequest(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(registrationRequests).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const rows = await db.select().from(registrationRequests).where(eq(registrationRequests.id, id)).limit(1);
   if (!rows[0]) throw new Error("Failed to create registration request");
   return rows[0];
@@ -256,7 +266,7 @@ export async function createLawFirm(data: Omit<LawFirm, 'id' | 'createdAt' | 'up
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(lawFirms).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const firm = await getLawFirmById(id);
   if (!firm) throw new Error("Failed to create law firm");
   return firm;
@@ -322,10 +332,27 @@ export async function createClient(data: Omit<Client, 'id' | 'createdAt' | 'upda
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(clients).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const client = await getClientById(id);
   if (!client) throw new Error("Failed to create client");
   return client;
+}
+
+export async function updateClientInLawFirm(
+  id: number,
+  lawFirmId: number,
+  data: Partial<Omit<Client, "id" | "lawFirmId" | "createdAt" | "updatedAt">>,
+): Promise<Client | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(clients)
+    .set(data as any)
+    .where(and(eq(clients.id, id), eq(clients.lawFirmId, lawFirmId)));
+  const result = await db.select().from(clients)
+    .where(and(eq(clients.id, id), eq(clients.lawFirmId, lawFirmId)))
+    .limit(1);
+  return result[0];
 }
 
 // ============ MATTER QUERIES ============
@@ -350,7 +377,7 @@ export async function createMatter(data: Omit<Matter, 'id' | 'createdAt' | 'upda
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(matters).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const matter = await getMatterById(id);
   if (!matter) throw new Error("Failed to create matter");
   return matter;
@@ -398,7 +425,7 @@ export async function createCase(data: Omit<Case, 'id' | 'createdAt' | 'updatedA
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(cases).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const caseData = await getCaseById(id);
   if (!caseData) throw new Error("Failed to create case");
   return caseData;
@@ -444,7 +471,7 @@ export async function createProject(data: Omit<Project, 'id' | 'createdAt' | 'up
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(projects).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const project = await getProjectById(id);
   if (!project) throw new Error("Failed to create project");
   return project;
@@ -479,7 +506,7 @@ export async function createCourtSession(data: Omit<CourtSession, 'id' | 'create
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(courtSessions).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const session = await db.select().from(courtSessions).where(eq(courtSessions.id, id)).limit(1);
   if (!session.length) throw new Error("Failed to create court session");
   return session[0];
@@ -511,7 +538,7 @@ export async function createDocument(data: Omit<Document, 'id' | 'createdAt' | '
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(documents).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const doc = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
   if (!doc.length) throw new Error("Failed to create document");
   return doc[0];
@@ -541,7 +568,7 @@ export async function createNotification(data: Omit<Notification, 'id' | 'create
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(notifications).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const notif = await db.select().from(notifications).where(eq(notifications.id, id)).limit(1);
   if (!notif.length) throw new Error("Failed to create notification");
   return notif[0];
@@ -564,7 +591,7 @@ export async function createAuditLog(data: Omit<AuditLog, 'id' | 'createdAt'>): 
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(auditLogs).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const log = await db.select().from(auditLogs).where(eq(auditLogs.id, id)).limit(1);
   if (!log.length) throw new Error("Failed to create audit log");
   return log[0];
@@ -596,7 +623,7 @@ export async function createTimesheet(data: Omit<Timesheet, 'id' | 'createdAt' |
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(timesheets).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const sheet = await db.select().from(timesheets).where(eq(timesheets.id, id)).limit(1);
   if (!sheet.length) throw new Error("Failed to create timesheet");
   return sheet[0];
@@ -618,7 +645,7 @@ export async function createExpense(data: Omit<Expense, 'id' | 'createdAt' | 'up
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(expenses).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const expense = await db.select().from(expenses).where(eq(expenses.id, id)).limit(1);
   if (!expense.length) throw new Error("Failed to create expense");
   return expense[0];
@@ -640,7 +667,7 @@ export async function createInvoice(data: Omit<Invoice, 'id' | 'createdAt' | 'up
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(invoices).values(data as any);
-  const id = (result as any).insertId;
+  const id = getInsertId(result);
   const invoice = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
   if (!invoice.length) throw new Error("Failed to create invoice");
   return invoice[0];

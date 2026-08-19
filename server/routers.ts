@@ -8,7 +8,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
   getCasesByLawFirm, getCaseById, createCase, updateCase, softDeleteCase,
-  getClientsByLawFirm, getClientById, createClient,
+  getClientsByLawFirm, getClientById, createClient, updateClientInLawFirm,
   getSessionsByCaseId, getUpcomingSessions, createCourtSession,
   getDocumentsByCaseId, createDocument, deleteDocument,
   getUserNotifications, createNotification, markNotificationAsRead,
@@ -533,11 +533,15 @@ export const appRouter = router({
         ipAddress: ctx.req.headers["x-forwarded-for"] as string || null,
       });
 
-      // Notify owner
-      await notifyOwner({
-        title: "قضية جديدة",
-        content: `تم إضافة قضية جديدة: ${input.title} (${input.caseNumber})`,
-      });
+      // Notification is a non-critical side effect; durable case creation must not fail when the optional service is unavailable.
+      try {
+        await notifyOwner({
+          title: "قضية جديدة",
+          content: `تم إضافة قضية جديدة: ${input.title} (${input.caseNumber})`,
+        });
+      } catch (error) {
+        console.warn("[Notification] Case notification was not delivered", error);
+      }
 
       return newCase;
     }),
@@ -645,6 +649,49 @@ export const appRouter = router({
         conflictCheckStatus: "pending",
         notes: input.notes || null,
       });
+    }),
+
+    update: lawFirmProcedure.input(z.object({
+      id: z.number().int().positive(),
+      name: z.string().min(1).optional(),
+      email: z.string().email().nullable().optional(),
+      phone: z.string().nullable().optional(),
+      address: z.string().nullable().optional(),
+      city: z.string().nullable().optional(),
+      nationalId: z.string().nullable().optional(),
+      clientType: z.enum(["individual", "company"]).optional(),
+      kycStatus: z.enum(["pending", "approved", "rejected"]).optional(),
+      conflictCheckStatus: z.enum(["pending", "clear", "conflict"]).optional(),
+      notes: z.string().nullable().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const current = await getClientById(input.id);
+      if (!current || current.lawFirmId !== ctx.lawFirmId) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      const { id, ...changes } = input;
+      const updated = await updateClientInLawFirm(id, ctx.lawFirmId, changes);
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+      return updated;
+    }),
+
+    conflictCheck: lawFirmProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
+      const current = await getClientById(input);
+      if (!current || current.lawFirmId !== ctx.lawFirmId) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      const updated = await updateClientInLawFirm(input, ctx.lawFirmId, { conflictCheckStatus: "pending" });
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+      return updated;
+    }),
+
+    kycCheck: lawFirmProcedure.input(z.number().int().positive()).mutation(async ({ input, ctx }) => {
+      const current = await getClientById(input);
+      if (!current || current.lawFirmId !== ctx.lawFirmId) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      const updated = await updateClientInLawFirm(input, ctx.lawFirmId, { kycStatus: "pending" });
+      if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
+      return updated;
     }),
   }),
 
