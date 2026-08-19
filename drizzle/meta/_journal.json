@@ -85,6 +85,13 @@
       "when": 1787152678434,
       "tag": "0012_document_scan_fail_closed",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1787153982144,
+      "tag": "0013_immutable_ledger",
+      "breakpoints": true
     }
   ]
 }

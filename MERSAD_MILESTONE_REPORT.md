@@ -584,3 +584,22 @@
 | AI | لم يُنفذ | citations، human review، قرار منتج ومزود |
 
 التصنيف التشغيلي لا يتغير: **BETA READY — NOT PRODUCTION READY**. النسبة الحسابية للمصفوفة لا تكفي لإعلان الإنتاج؛ ما زالت قيود قاعدة البيانات الفعلية، scanner، restore drill، ledger، identity capabilities، scheduler، OCR/PDF، وDB integration المعتمدة شروطًا مفتوحة.
+
+
+## تنفيذ أهم بند غير مكتمل — Financial Ledger آمن
+
+تم تنفيذ جزء داخلي جوهري من P1-007 بدل إبقاء النظام معتمدًا على Payment placeholder. أضيف جدول `ledgerEntries` append-only إلى schema عبر migration `0013_immutable_ledger.sql`. يحتوي كل سجل على المكتب، نوع القيد، الاتجاه، المبلغ العشري، العملة، الحالة، مفتاح idempotency فريد، المرجع الخارجي الاختياري، المستخدم المنشئ، وقت الحدوث، والبيانات الوصفية.
+
+لا توجد دوال update أو delete للقيود المنشورة؛ التصحيح يجب أن يكون عبر قيد عكسي جديد. دالة `appendLedgerEntry` ترفض المبالغ غير الموجبة أو ذات أكثر من منزلتين عشريتين، وتتحقق من عملة ISO ثلاثية الأحرف ومفتاح idempotency، وتعيد القيد السابق عند إعادة الطلب بالمفتاح نفسه داخل المكتب، وترفض استخدام مفتاح تابع لمكتب آخر. القراءة متاحة عبر `ledger.list` للأدوار `admin` و`manager` و`accountant` فقط، وبـTenant scope وpagination.
+
+ما زال `PaymentService` مغلقًا fail-closed؛ لم يتم اختراع عملية دفع أو transaction ID وهمية. لم يُربط ledger بعد بتحويلات invoice/duePayment الفعلية أو بمزود دفع خارجي، لذلك لا يُعلن P1-007 مكتملًا بالكامل.
+
+| الفحص | النتيجة |
+|---|---|
+| `pnpm check` | ناجح |
+| اختبار ledger المركز | ناجح: 3/3، بما في ذلك amount validation وcurrency/idempotency والـrole gate |
+| `pnpm test` | ناجح: 137 اختبارًا ناجحًا و30 متخطيًا لغياب `DATABASE_URL` |
+| `pnpm build` | ناجح |
+| `git diff --check` | ناجح |
+
+الحالة الدقيقة لـP1-007: **IMPLEMENTED repository ledger / external payment provider blocked / invoice settlement integration pending**. التصنيف العام يبقى **BETA READY — NOT PRODUCTION READY**.

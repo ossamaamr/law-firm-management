@@ -3,11 +3,11 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, sessionRevocations,
   lawFirms, brandingSettings, userInvitations, registrationRequests, clients, matters, cases, projects, courtSessions, 
-  tasks, documents, timesheets, expenses, duePayments, invoices,
+  tasks, documents, timesheets, expenses, duePayments, invoices, ledgerEntries,
   notifications, auditLogs, legalServiceRequests,
   type User, type LawFirm, type Client, type Matter, type Case, type Project, 
   type CourtSession, type Task, type Document, type Timesheet, type Expense,
-  type DuePayment, type Invoice, type Notification, type AuditLog, type LegalServiceRequest,
+  type DuePayment, type Invoice, type LedgerEntry, type Notification, type AuditLog, type LegalServiceRequest,
   type BrandingSettings, type UserInvitation, type RegistrationRequest
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -861,4 +861,92 @@ export async function createInvoice(data: Omit<Invoice, 'id' | 'createdAt' | 'up
   const invoice = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
   if (!invoice.length) throw new Error("Failed to create invoice");
   return invoice[0];
+}
+
+
+// ============ IMMUTABLE FINANCIAL LEDGER ============
+
+const ledgerAmountPattern = /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/;
+
+/**
+ * Append a ledger entry. There is deliberately no update/delete helper:
+ * corrections must be represented by a reversing entry with a new key.
+ */
+export async function appendLedgerEntry(input: {
+  lawFirmId: number;
+  matterId?: number | null;
+  invoiceId?: number | null;
+  duePaymentId?: number | null;
+  entryType: LedgerEntry["entryType"];
+  direction: LedgerEntry["direction"];
+  amount: string;
+  currency?: string;
+  idempotencyKey: string;
+  externalTransactionId?: string | null;
+  createdById: number;
+  occurredAt?: Date;
+  metadata?: Record<string, unknown> | null;
+}): Promise<LedgerEntry> {
+  if (!ledgerAmountPattern.test(input.amount) || Number(input.amount) <= 0) {
+    throw new Error("Ledger amount must be a positive decimal with at most two fractional digits");
+  }
+  const currency = (input.currency ?? "SAR").trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) throw new Error("Ledger currency must be a 3-letter ISO code");
+  if (!/^[A-Za-z0-9:_-]{8,128}$/.test(input.idempotencyKey)) {
+    throw new Error("Ledger idempotency key is invalid");
+  }
+
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await db.select().from(ledgerEntries)
+    .where(eq(ledgerEntries.idempotencyKey, input.idempotencyKey))
+    .limit(1);
+  if (existing[0]) {
+    if (existing[0].lawFirmId !== input.lawFirmId) {
+      throw new Error("Ledger idempotency key belongs to another law firm");
+    }
+    return existing[0];
+  }
+
+  await db.insert(ledgerEntries).values({
+    lawFirmId: input.lawFirmId,
+    matterId: input.matterId ?? null,
+    invoiceId: input.invoiceId ?? null,
+    duePaymentId: input.duePaymentId ?? null,
+    entryType: input.entryType,
+    direction: input.direction,
+    amount: input.amount,
+    currency,
+    status: "posted",
+    idempotencyKey: input.idempotencyKey,
+    externalTransactionId: input.externalTransactionId ?? null,
+    createdById: input.createdById,
+    occurredAt: input.occurredAt ?? new Date(),
+    metadata: input.metadata ?? null,
+  }).onDuplicateKeyUpdate({ set: { idempotencyKey: input.idempotencyKey } });
+
+  const [entry] = await db.select().from(ledgerEntries)
+    .where(and(
+      eq(ledgerEntries.lawFirmId, input.lawFirmId),
+      eq(ledgerEntries.idempotencyKey, input.idempotencyKey),
+    ))
+    .limit(1);
+  if (!entry) throw new Error("Ledger entry could not be read after append");
+  return entry;
+}
+
+export async function getLedgerEntriesByLawFirm(
+  lawFirmId: number,
+  options: { limit?: number; offset?: number } = {},
+): Promise<LedgerEntry[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+  const offset = Math.min(Math.max(options.offset ?? 0, 0), 100000);
+  return db.select().from(ledgerEntries)
+    .where(eq(ledgerEntries.lawFirmId, lawFirmId))
+    .orderBy(desc(ledgerEntries.createdAt), desc(ledgerEntries.id))
+    .limit(limit)
+    .offset(offset);
 }

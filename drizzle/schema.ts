@@ -428,6 +428,36 @@ export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
 
 /**
+ * Immutable financial ledger - دفتر مالي غير قابل للتعديل.
+ * Entries are append-only; corrections must be represented by a reversing entry.
+ */
+export const ledgerEntries = mysqlTable("ledgerEntries", {
+  id: int("id").autoincrement().primaryKey(),
+  lawFirmId: int("lawFirmId").notNull(),
+  matterId: int("matterId"),
+  invoiceId: int("invoiceId"),
+  duePaymentId: int("duePaymentId"),
+  entryType: mysqlEnum("entryType", ["invoice_issued", "payment_received", "refund", "adjustment", "expense_approved"]).notNull(),
+  direction: mysqlEnum("direction", ["debit", "credit"]).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("SAR").notNull(),
+  status: mysqlEnum("status", ["posted", "reversed", "void"]).default("posted").notNull(),
+  idempotencyKey: varchar("idempotencyKey", { length: 128 }).notNull().unique(),
+  externalTransactionId: varchar("externalTransactionId", { length: 255 }),
+  createdById: int("createdById").notNull(),
+  occurredAt: timestamp("occurredAt").defaultNow().notNull(),
+  metadata: json("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  lawFirmCreatedAtIdx: index("ledger_lawFirm_createdAt_idx").on(table.lawFirmId, table.createdAt),
+  lawFirmInvoiceIdx: index("ledger_lawFirm_invoice_idx").on(table.lawFirmId, table.invoiceId),
+  lawFirmMatterIdx: index("ledger_lawFirm_matter_idx").on(table.lawFirmId, table.matterId),
+}));
+
+export type LedgerEntry = typeof ledgerEntries.$inferSelect;
+export type InsertLedgerEntry = typeof ledgerEntries.$inferInsert;
+
+/**
  * Notifications - الإشعارات
  */
 export const notifications = mysqlTable("notifications", {

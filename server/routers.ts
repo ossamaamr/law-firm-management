@@ -20,6 +20,7 @@ import {
   revokeUserInvitation, assignUserToLawFirm, markInvitationAccepted,
   getLawFirmByIdentifier, getRegistrationRequestsByLawFirm, getRegistrationRequestsByUser,
   createRegistrationRequest, reviewRegistrationRequest, approveRegistrationRequestAtomically, searchLawFirm,
+  getLedgerEntriesByLawFirm,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
@@ -56,6 +57,13 @@ const brandingAdminProcedure = lawFirmProcedure.use(async ({ ctx, next }) => {
 const adminLawFirmProcedure = lawFirmProcedure.use(async ({ ctx, next }) => {
   if (ctx.user.role !== "admin" && ctx.user.role !== "manager") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+  return next({ ctx });
+});
+
+const financeProcedure = lawFirmProcedure.use(async ({ ctx, next }) => {
+  if (!["admin", "manager", "accountant"].includes(ctx.user.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Financial access required" });
   }
   return next({ ctx });
 });
@@ -737,6 +745,16 @@ export const appRouter = router({
       const updated = await updateClientInLawFirm(input, ctx.lawFirmId, { kycStatus: "pending" });
       if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
       return updated;
+    }),
+  }),
+
+  // ============ IMMUTABLE FINANCIAL LEDGER ============
+  ledger: router({
+    list: financeProcedure.input(z.object({
+      limit: z.number().int().min(1).max(100).default(50),
+      offset: z.number().int().min(0).max(100000).default(0),
+    }).default({ limit: 50, offset: 0 })).query(async ({ input, ctx }) => {
+      return getLedgerEntriesByLawFirm(ctx.lawFirmId, input);
     }),
   }),
 
