@@ -548,3 +548,39 @@
 أضيف regression test يثبت أن `toSafeDocumentMetadata` يعيد `pending` عند غياب `scanStatus`، مع استمرار اختبار غياب scanner الذي يثبت fail-safe. نجحت البوابات: `pnpm check`، و`pnpm test` بنتيجة **134 اختبارًا ناجحًا و30 متخطيًا**، و`pnpm build`، و`git diff --check`.
 
 حالة P1-005 أصبحت **IMPLEMENTED fail-closed repository / external scanner pending**. لم يُدّع إغلاق البند الإنتاجي لأن نتيجة `clean` الحقيقية ما زالت تتطلب scanner معتمدًا، لكن مسار الفشل الآن آمن ولا يسمح بتحويل الغياب أو الخطأ إلى نجاح وهمي.
+
+
+## P1-008 وقراءة الدستور الكامل — 19 أغسطس 2026
+
+أُعيدت قراءة `MERSAD_ENGINEERING_CONSTITUTION.md` كاملًا حتى ملحق FINAL 90%+، ثم نُفذت خطوة P1-008 داخل حدود البيئة المتاحة. أُضيف الملف `docs/MERSAD_DB_PREFLIGHT.sql` كفحص read-only قابل للتشغيل على MySQL/MariaDB معتمد، ويغطي orphan rows للمكاتب والعملاء والملفات والقضايا والمحامين، والعلاقات العابرة للمكاتب بين Matter/Client وMatter/Lawyer وCase/Matter. القاعدة المطلوبة قبل التطبيق هي أن تعيد كل الفحوص `violations = 0`.
+
+لم يتم تشغيل preflight على قاعدة فعلية لأن `DATABASE_URL` وقاعدة MySQL/MariaDB معتمدة غير متاحة في البيئة الحالية، ولم يتم تطبيق migration على قاعدة غير معروفة. لذلك الحالة الدقيقة هي **IMPLEMENTED repository / database execution pending**، لا `VERIFIED production`.
+
+| الفحص | النتيجة |
+|---|---|
+| قراءة الدستور كاملًا | مكتملة، بما في ذلك سجل المشكلات والميزات غير المكتملة وقواعد الجاهزية |
+| فحص preflight النصي | ناجح؛ جميع markers المطلوبة وmigration 0011 موجودة |
+| `pnpm check` | ناجح |
+| `pnpm test` | ناجح: 134 اختبارًا ناجحًا و30 متخطيًا لغياب `DATABASE_URL` |
+| `pnpm build` | ناجح |
+| `git diff --check` | ناجح |
+
+### جرد تنفيذ الدستور بعد المراجعة الكاملة
+
+| المجال | ما نُفذ فعليًا | ما بقي أو ما يحتاج إثباتًا |
+|---|---|---|
+| Authentication | OAuth cookie موحد، إزالة localStorage/mock token، `jti` revocation، logout واختبارات سلبية | MFA، password reset، rotation/rate limiting حسب capability مزود الهوية |
+| Authorization/Admin | `adminProcedure`، حماية join requests، privilege escalation protection، Admin Control Center، audit | تشغيل اختبارات MySQL العدائية الكاملة على بيئة معتمدة |
+| Tenant isolation/IDOR | scoping للمسارات الرئيسية، اختبارات Firm A/B، منع علاقات Case الوهمية، 6 اختبارات tenant إضافية | تشغيل DB integration الكامل وإثبات كل resource/Export/Search على بيانات حقيقية معزولة |
+| Documents | MIME/signature/size، private download gate، signed URL، hash/version/retention، fail-closed `pending`، migration 0012 | scanner خارجي يعطي `clean` حقيقية، تطبيق migrations وفحص storage الإنتاجي |
+| Database integrity | فهارس tenant، approval transaction، FK migration 0011، preflight read-only، FK version chain | تشغيل preflight وتطبيق migrations فعليًا على MySQL/MariaDB معتمد، ومراجعة بقية العلاقات والـunique semantics |
+| Dashboard/Branding | بيانات Dashboard الأساسية حقيقية، Branding tenant-scoped، logo upload، health/readiness وrequest IDs | metrics/alerts الخارجية، تغطية usage المتقدمة |
+| Search/Performance | Universal Search tenant-scoped مع pagination/ranking، limits للقوائم، DB failure semantics محسنة | اختبارات DB الكاملة وcursor pagination لبعض الموارد |
+| Legal workflows | deadline service وclaim ذري وidempotency tests، court session tenant fix | scheduler إنتاجي معتمد، Calendar acceptance على قاعدة فعلية |
+| Financial integrity | fake payment/SMS مغلقان بوضوح، حدود عدم الادعاء | ledger مالي auditable أو مزود دفع معتمد وidempotency |
+| Backup/restore | runbook قابل للتشغيل والتحقق | restore drill فعلي في بيئة وتخزين معتمدين |
+| Arabic-first | Arabic normalization واختبارها، RTL جزئي | OCR/PDF عربي، visual RTL/mobile/accessibility acceptance |
+| Client Portal | لم يُنفذ عمدًا لتجنب اختراع هوية عميل | قرار هوية العميل ونطاق البيانات ثم portal محدود tenant-safe |
+| AI | لم يُنفذ | citations، human review، قرار منتج ومزود |
+
+التصنيف التشغيلي لا يتغير: **BETA READY — NOT PRODUCTION READY**. النسبة الحسابية للمصفوفة لا تكفي لإعلان الإنتاج؛ ما زالت قيود قاعدة البيانات الفعلية، scanner، restore drill، ledger، identity capabilities، scheduler، OCR/PDF، وDB integration المعتمدة شروطًا مفتوحة.
