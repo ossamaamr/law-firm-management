@@ -83,6 +83,29 @@ export const CasEngineDashboard: React.FC = () => {
 
   const summary = dashboardQuery.data;
   const canManageBranding = user?.role === 'admin' || user?.role === 'manager';
+  const [logoUploadPending, setLogoUploadPending] = useState(false);
+
+  const uploadBrandingLogo = async (file: File) => {
+    if (!canManageBranding) return;
+    setLogoUploadPending(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      const response = await fetch('/api/branding/logo', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || (language === 'ar' ? 'تعذر رفع الشعار' : 'Logo upload failed'));
+      await brandingQuery.refetch();
+      toast.success(language === 'ar' ? 'تم رفع الشعار وتحديث الهوية' : 'Logo uploaded and branding updated');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : (language === 'ar' ? 'تعذر رفع الشعار' : 'Logo upload failed'));
+    } finally {
+      setLogoUploadPending(false);
+    }
+  };
   const stats: DashboardStats = {
     totalCases: summary?.cases.total ?? 0,
     openCases: summary?.cases.open ?? 0,
@@ -515,19 +538,26 @@ export const CasEngineDashboard: React.FC = () => {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="logoUrl">{language === 'ar' ? 'رابط الشعار' : 'Logo URL'}</Label>
+                      <Label htmlFor="logoFile">{language === 'ar' ? 'شعار المكتب' : 'Firm logo'}</Label>
                       <Input
-                        id="logoUrl"
-                        value={brandingForm.logoUrl}
-                        onChange={event => setBrandingForm(current => ({ ...current, logoUrl: event.target.value }))}
-                        disabled={!canManageBranding || brandingMutation.isPending}
-                        maxLength={500}
-                        placeholder="https://… أو /manus-storage/…"
+                        id="logoFile"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={!canManageBranding || brandingMutation.isPending || logoUploadPending}
+                        onChange={event => {
+                          const file = event.target.files?.[0];
+                          if (file) void uploadBrandingLogo(file);
+                          event.currentTarget.value = '';
+                        }}
                         dir="ltr"
                       />
                       <p className="text-xs text-muted-foreground">
-                        {language === 'ar' ? 'يجب أن يبدأ الرابط بـ HTTPS أو بمسار تخزين المنصة.' : 'Use HTTPS or a platform storage path.'}
+                        {language === 'ar' ? 'PNG أو JPEG أو WebP، بحد أقصى 2MB. يتحقق الخادم من النوع والمحتوى.' : 'PNG, JPEG, or WebP up to 2MB. The server verifies type and content.'}
                       </p>
+                      {logoUploadPending && <p className="text-sm text-muted-foreground">{language === 'ar' ? 'جارٍ رفع الشعار…' : 'Uploading logo…'}</p>}
+                      {brandingForm.logoUrl && (
+                        <p className="text-xs text-muted-foreground truncate" dir="ltr">{brandingForm.logoUrl}</p>
+                      )}
                     </div>
                     {canManageBranding ? (
                       <Button type="submit" disabled={brandingMutation.isPending}>
