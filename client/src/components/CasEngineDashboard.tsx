@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -15,6 +15,9 @@ import { trpc } from '@/lib/trpc';
 import { useActivity } from '@/hooks/useActivity';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 const COLORS = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6'];
 
@@ -51,7 +54,35 @@ export const CasEngineDashboard: React.FC = () => {
   const dashboardQuery = trpc.dashboard.summary.useQuery(undefined, {
     enabled: Boolean(user?.lawFirmId),
   });
+  const brandingQuery = trpc.branding.get.useQuery(undefined, {
+    enabled: Boolean(user?.lawFirmId),
+  });
+  const brandingMutation = trpc.branding.update.useMutation({
+    onSuccess: async () => {
+      await brandingQuery.refetch();
+      toast.success(language === 'ar' ? 'تم تحديث هوية المنصة' : 'Platform branding updated');
+    },
+    onError: error => {
+      toast.error(error.message || (language === 'ar' ? 'تعذر تحديث الهوية' : 'Unable to update branding'));
+    },
+  });
+  const [brandingForm, setBrandingForm] = useState({
+    platformNameAr: '',
+    platformNameEn: '',
+    logoUrl: '',
+  });
+
+  useEffect(() => {
+    if (!brandingQuery.data) return;
+    setBrandingForm({
+      platformNameAr: brandingQuery.data.platformNameAr,
+      platformNameEn: brandingQuery.data.platformNameEn,
+      logoUrl: brandingQuery.data.logoUrl ?? '',
+    });
+  }, [brandingQuery.data]);
+
   const summary = dashboardQuery.data;
+  const canManageBranding = user?.role === 'admin' || user?.role === 'manager';
   const stats: DashboardStats = {
     totalCases: summary?.cases.total ?? 0,
     openCases: summary?.cases.open ?? 0,
@@ -98,13 +129,26 @@ export const CasEngineDashboard: React.FC = () => {
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className={`flex items-center gap-3 ${!sidebarOpen && 'justify-center w-full'}`}>
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
+                {brandingQuery.data?.logoUrl ? (
+                  <img
+                    src={brandingQuery.data.logoUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <Briefcase className="w-6 h-6 text-white" />
+                )}
               </div>
               {sidebarOpen && (
-                <div>
-                  <h1 className="font-bold text-gray-900 dark:text-white">CasEngine</h1>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">نظام إدارة المحاماة</p>
+                <div className="min-w-0">
+                  <h1 className="font-bold text-gray-900 dark:text-white truncate">
+                    {language === 'ar' ? brandingQuery.data?.platformNameAr : brandingQuery.data?.platformNameEn}
+                  </h1>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {language === 'ar' ? 'نظام إدارة المحاماة' : 'Legal operating system'}
+                  </p>
                 </div>
               )}
             </div>
@@ -423,10 +467,79 @@ export const CasEngineDashboard: React.FC = () => {
           {activeTab === 'settings' && (
             <Card>
               <CardHeader>
-                <CardTitle>{t('settings')}</CardTitle>
+                <CardTitle>{language === 'ar' ? 'هوية المنصة' : 'Platform identity'}</CardTitle>
+                <CardDescription>
+                  {language === 'ar'
+                    ? 'تظهر هذه الهوية داخل مساحة مكتبك فقط، ولا يمكن لمكتب آخر قراءتها أو تعديلها.'
+                    : 'This identity is scoped to your firm and cannot be read or changed by another firm.'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-500 dark:text-gray-400">{t('comingSoon')}</p>
+                {brandingQuery.isLoading ? (
+                  <p className="text-sm text-muted-foreground">{language === 'ar' ? 'جارٍ تحميل الإعدادات…' : 'Loading settings…'}</p>
+                ) : (
+                  <form
+                    className="space-y-5 max-w-2xl"
+                    dir={isRTL ? 'rtl' : 'ltr'}
+                    onSubmit={event => {
+                      event.preventDefault();
+                      if (!canManageBranding) return;
+                      brandingMutation.mutate({
+                        platformNameAr: brandingForm.platformNameAr,
+                        platformNameEn: brandingForm.platformNameEn,
+                        logoUrl: brandingForm.logoUrl.trim() || null,
+                      });
+                    }}
+                  >
+                    <div className="grid gap-2">
+                      <Label htmlFor="platformNameAr">{language === 'ar' ? 'اسم المنصة بالعربية' : 'Arabic platform name'}</Label>
+                      <Input
+                        id="platformNameAr"
+                        value={brandingForm.platformNameAr}
+                        onChange={event => setBrandingForm(current => ({ ...current, platformNameAr: event.target.value }))}
+                        disabled={!canManageBranding || brandingMutation.isPending}
+                        maxLength={120}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="platformNameEn">{language === 'ar' ? 'اسم المنصة بالإنجليزية' : 'English platform name'}</Label>
+                      <Input
+                        id="platformNameEn"
+                        value={brandingForm.platformNameEn}
+                        onChange={event => setBrandingForm(current => ({ ...current, platformNameEn: event.target.value }))}
+                        disabled={!canManageBranding || brandingMutation.isPending}
+                        maxLength={120}
+                        required
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="logoUrl">{language === 'ar' ? 'رابط الشعار' : 'Logo URL'}</Label>
+                      <Input
+                        id="logoUrl"
+                        value={brandingForm.logoUrl}
+                        onChange={event => setBrandingForm(current => ({ ...current, logoUrl: event.target.value }))}
+                        disabled={!canManageBranding || brandingMutation.isPending}
+                        maxLength={500}
+                        placeholder="https://… أو /manus-storage/…"
+                        dir="ltr"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {language === 'ar' ? 'يجب أن يبدأ الرابط بـ HTTPS أو بمسار تخزين المنصة.' : 'Use HTTPS or a platform storage path.'}
+                      </p>
+                    </div>
+                    {canManageBranding ? (
+                      <Button type="submit" disabled={brandingMutation.isPending}>
+                        {brandingMutation.isPending ? (language === 'ar' ? 'جارٍ الحفظ…' : 'Saving…') : t('save')}
+                      </Button>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {language === 'ar' ? 'للتعديل، يلزم دور المدير أو المسؤول.' : 'Manager or admin access is required to edit branding.'}
+                      </p>
+                    )}
+                  </form>
+                )}
               </CardContent>
             </Card>
           )}

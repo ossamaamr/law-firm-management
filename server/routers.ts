@@ -12,7 +12,7 @@ import {
   getUserNotifications, createNotification, markNotificationAsRead,
   getAuditLogsByCaseId, createAuditLog,
   getLawFirmById, getUsersByLawFirm, getUserById, getMatterById,
-  getDocumentById,
+  getDocumentById, getBrandingSettings, upsertBrandingSettings,
 } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { authRouter } from "./auth.routes";
@@ -38,6 +38,25 @@ const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   return next({ ctx });
 });
 
+const brandingAdminProcedure = lawFirmProcedure.use(async ({ ctx, next }) => {
+  if (ctx.user.role !== "admin" && ctx.user.role !== "manager") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+  }
+  return next({ ctx });
+});
+
+const brandingInput = z.object({
+  platformNameAr: z.string().trim().min(2).max(120),
+  platformNameEn: z.string().trim().min(2).max(120),
+  logoUrl: z.string().trim().max(500).nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (!value.logoUrl) return;
+  const isSafeLogoUrl = value.logoUrl.startsWith("/manus-storage/") || value.logoUrl.startsWith("https://");
+  if (!isSafeLogoUrl) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["logoUrl"], message: "Logo URL must use HTTPS or platform storage" });
+  }
+});
+
 // ============ ROUTERS ============
 
 export const appRouter = router({
@@ -53,6 +72,65 @@ export const appRouter = router({
         to: z.coerce.date().optional(),
       }).optional())
       .query(({ input, ctx }) => getDashboardSummary(ctx.lawFirmId, input ?? {})),
+  }),
+
+  branding: router({
+    get: lawFirmProcedure.query(async ({ ctx }) => {
+      const settings = await getBrandingSettings(ctx.lawFirmId);
+      if (settings) {
+        return {
+          lawFirmId: settings.lawFirmId,
+          platformNameAr: settings.platformNameAr,
+          platformNameEn: settings.platformNameEn,
+          logoUrl: settings.logoUrl,
+        };
+      }
+
+      const firm = await getLawFirmById(ctx.lawFirmId);
+      if (!firm) throw new TRPCError({ code: "NOT_FOUND" });
+      return {
+        lawFirmId: firm.id,
+        platformNameAr: firm.name,
+        platformNameEn: firm.name,
+        logoUrl: null,
+      };
+    }),
+    update: brandingAdminProcedure.input(brandingInput).mutation(async ({ input, ctx }) => {
+      const previous = await getBrandingSettings(ctx.lawFirmId);
+      const saved = await upsertBrandingSettings(ctx.lawFirmId, {
+        platformNameAr: input.platformNameAr,
+        platformNameEn: input.platformNameEn,
+        logoUrl: input.logoUrl ?? null,
+        updatedById: ctx.user.id,
+      });
+      await logActivity({
+        firmId: ctx.lawFirmId,
+        userId: ctx.user.id,
+        actionType: "update",
+        entityType: "branding",
+        entityId: ctx.lawFirmId,
+        entityName: input.platformNameAr,
+        changes: {
+          before: previous ? {
+            platformNameAr: previous.platformNameAr,
+            platformNameEn: previous.platformNameEn,
+            logoUrl: previous.logoUrl,
+          } : undefined,
+          after: {
+            platformNameAr: saved.platformNameAr,
+            platformNameEn: saved.platformNameEn,
+            logoUrl: saved.logoUrl,
+          },
+        },
+        ipAddress: ctx.req.headers["x-forwarded-for"] as string || undefined,
+      });
+      return {
+        lawFirmId: saved.lawFirmId,
+        platformNameAr: saved.platformNameAr,
+        platformNameEn: saved.platformNameEn,
+        logoUrl: saved.logoUrl,
+      };
+    }),
   }),
 
   // ============ CASES ROUTER ============

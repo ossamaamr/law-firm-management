@@ -2,12 +2,13 @@ import { eq, and, desc, asc, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
-  lawFirms, clients, matters, cases, projects, courtSessions, 
+  lawFirms, brandingSettings, clients, matters, cases, projects, courtSessions, 
   tasks, documents, timesheets, expenses, duePayments, invoices,
   notifications, auditLogs, legalServiceRequests,
   type User, type LawFirm, type Client, type Matter, type Case, type Project, 
   type CourtSession, type Task, type Document, type Timesheet, type Expense,
-  type DuePayment, type Invoice, type Notification, type AuditLog, type LegalServiceRequest
+  type DuePayment, type Invoice, type Notification, type AuditLog, type LegalServiceRequest,
+  type BrandingSettings
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -128,6 +129,44 @@ export async function createLawFirm(data: Omit<LawFirm, 'id' | 'createdAt' | 'up
   const firm = await getLawFirmById(id);
   if (!firm) throw new Error("Failed to create law firm");
   return firm;
+}
+
+// ============ BRANDING QUERIES ============
+
+export async function getBrandingSettings(lawFirmId: number): Promise<BrandingSettings | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .select()
+    .from(brandingSettings)
+    .where(eq(brandingSettings.lawFirmId, lawFirmId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function upsertBrandingSettings(
+  lawFirmId: number,
+  data: Pick<BrandingSettings, "platformNameAr" | "platformNameEn" | "logoUrl"> & { updatedById: number },
+): Promise<BrandingSettings> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .insert(brandingSettings)
+    .values({ lawFirmId, ...data })
+    .onDuplicateKeyUpdate({
+      set: {
+        platformNameAr: data.platformNameAr,
+        platformNameEn: data.platformNameEn,
+        logoUrl: data.logoUrl,
+        updatedById: data.updatedById,
+      },
+    });
+
+  const saved = await getBrandingSettings(lawFirmId);
+  if (!saved) throw new Error("Failed to save branding settings");
+  return saved;
 }
 
 // ============ CLIENT QUERIES ============

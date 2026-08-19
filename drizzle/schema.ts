@@ -41,6 +41,23 @@ export type LawFirm = typeof lawFirms.$inferSelect;
 export type InsertLawFirm = typeof lawFirms.$inferInsert;
 
 /**
+ * Branding settings - هوية المنصة الخاصة بكل مكتب
+ * One row per law firm; all reads and writes must be scoped by lawFirmId.
+ */
+export const brandingSettings = mysqlTable("brandingSettings", {
+  lawFirmId: int("lawFirmId").primaryKey(),
+  platformNameAr: varchar("platformNameAr", { length: 120 }).notNull(),
+  platformNameEn: varchar("platformNameEn", { length: 120 }).notNull(),
+  logoUrl: varchar("logoUrl", { length: 500 }),
+  updatedById: int("updatedById"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BrandingSettings = typeof brandingSettings.$inferSelect;
+export type InsertBrandingSettings = typeof brandingSettings.$inferInsert;
+
+/**
  * Clients table - العملاء (الموكلين)
  */
 export const clients = mysqlTable("clients", {
