@@ -1,7 +1,7 @@
 import { eq, and, desc, asc, like, sql, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
-  InsertUser, users, 
+  InsertUser, users, sessionRevocations,
   lawFirms, brandingSettings, userInvitations, registrationRequests, clients, matters, cases, projects, courtSessions, 
   tasks, documents, timesheets, expenses, duePayments, invoices,
   notifications, auditLogs, legalServiceRequests,
@@ -22,6 +22,24 @@ function getInsertId(result: unknown): number {
     throw new Error("Insert did not return a valid insertId");
   }
   return id;
+}
+
+export async function isSessionRevoked(jti: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.select({ jti: sessionRevocations.jti })
+    .from(sessionRevocations)
+    .where(eq(sessionRevocations.jti, jti))
+    .limit(1);
+  return rows.length > 0;
+}
+
+export async function revokeSession(jti: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(sessionRevocations)
+    .values({ jti })
+    .onDuplicateKeyUpdate({ set: { jti } });
 }
 
 export async function getDb() {

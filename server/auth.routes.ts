@@ -1,7 +1,9 @@
 import { COOKIE_NAME } from "@shared/const";
+import { parse as parseCookieHeader } from "cookie";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { sdk } from "./_core/sdk";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 
 const unavailable = () => {
@@ -14,7 +16,11 @@ const unavailable = () => {
 export const authRouter = router({
   me: publicProcedure.query(({ ctx }) => ctx.user),
 
-  logout: publicProcedure.mutation(({ ctx }) => {
+  logout: publicProcedure.mutation(async ({ ctx }) => {
+    const cookieValue = parseCookieHeader(ctx.req.headers.cookie ?? "")[COOKIE_NAME];
+    if (cookieValue) {
+      await sdk.revokeSessionCookie(cookieValue);
+    }
     const cookieOptions = getSessionCookieOptions(ctx.req);
     ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
     return { success: true } as const;

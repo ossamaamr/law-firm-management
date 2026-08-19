@@ -21,6 +21,16 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 /**
+ * Revoked OAuth session identifiers. The JWT itself is never stored.
+ */
+export const sessionRevocations = mysqlTable("sessionRevocations", {
+  jti: varchar("jti", { length: 128 }).primaryKey(),
+  revokedAt: timestamp("revokedAt").defaultNow().notNull(),
+});
+
+export type SessionRevocation = typeof sessionRevocations.$inferSelect;
+
+/**
  * Law Firms table - المكاتب القانونية
  */
 export const lawFirms = mysqlTable("lawFirms", {

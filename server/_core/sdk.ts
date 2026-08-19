@@ -1,4 +1,5 @@
 import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { randomUUID } from "node:crypto";
 import { ForbiddenError } from "@shared/_core/errors";
 import axios, { type AxiosInstance } from "axios";
 import { parse as parseCookieHeader } from "cookie";
@@ -23,6 +24,8 @@ export type SessionPayload = {
   appId: string;
   name: string;
 };
+
+type VerifiedSession = SessionPayload & { jti?: string };
 
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
 const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
@@ -192,6 +195,7 @@ class SDKServer {
       appId: payload.appId,
       name: payload.name,
     })
+      .setJti(randomUUID())
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setExpirationTime(expirationSeconds)
       .sign(secretKey);
@@ -199,7 +203,7 @@ class SDKServer {
 
   async verifySession(
     cookieValue: string | undefined | null
-  ): Promise<{ openId: string; appId: string; name: string } | null> {
+  ): Promise<VerifiedSession | null> {
     if (!cookieValue) {
       console.warn("[Auth] Missing session cookie");
       return null;
@@ -210,7 +214,19 @@ class SDKServer {
       const { payload } = await jwtVerify(cookieValue, secretKey, {
         algorithms: ["HS256"],
       });
-      const { openId, appId, name } = payload as Record<string, unknown>;
+      const { openId, appId, name, jti } = payload as Record<string, unknown>;
+
+      if (isNonEmptyString(jti)) {
+        try {
+          if (await db.isSessionRevoked(jti)) {
+            console.warn("[Auth] Session has been revoked");
+            return null;
+          }
+        } catch (error) {
+          console.error("[Auth] Session revocation check failed", error);
+          return null;
+        }
+      }
 
       if (
         !isNonEmptyString(openId) ||
@@ -225,11 +241,19 @@ class SDKServer {
         openId,
         appId,
         name,
+        ...(isNonEmptyString(jti) ? { jti } : {}),
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));
       return null;
     }
+  }
+
+  async revokeSessionCookie(cookieValue: string | undefined | null): Promise<boolean> {
+    const session = await this.verifySession(cookieValue);
+    if (!session?.jti) return false;
+    await db.revokeSession(session.jti);
+    return true;
   }
 
   async getUserInfoWithJwt(
