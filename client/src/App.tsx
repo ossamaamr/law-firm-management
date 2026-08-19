@@ -10,6 +10,7 @@ import { CasEngineDashboard } from "./components/CasEngineDashboard";
 import Clients from "./pages/Clients";
 import Cases from "./pages/Cases";
 import LoginPage from "./pages/LoginPage";
+import { Analytics } from "./components/Analytics";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -42,6 +43,7 @@ function App() {
         >
           <TooltipProvider>
             <Toaster />
+            <Analytics />
             <Router />
           </TooltipProvider>
         </ThemeProvider>

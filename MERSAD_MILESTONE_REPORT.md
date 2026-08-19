@@ -151,3 +151,25 @@
 أضيفت `supertest` و`@types/supertest` كاعتمادَي اختبار. الاختبارات الحالية تستخدم حدودًا معزولة حتى تعمل افتراضيًا، ويمكن استبدال mocks ببيئة قاعدة بيانات وStorage Proxy حقيقية في CI دون تغيير عقد endpoint.
 
 > **الحكم:** عقد رفع المستندات الآن مختبر على مستوى HTTP وتجربة الرفع أوضح، بينما يظل اختبار الخدمة الخارجية الفعلي خطوة تشغيلية مطلوبة قبل الإنتاج.
+
+
+## تحديث دستور MERSAD — جاهزية الإنتاج وبوابات CI
+
+تمت إضافة GitHub Actions workflow في `.github/workflows/quality.yml` يعمل عند الدفع إلى `main` وعند Pull Request والتشغيل اليدوي. ينفذ workflow تثبيتًا مقفلاً، TypeScript check، الاختبارات، فحص المسافات، ثم build الإنتاج. يمكن تمرير `TEST_DATABASE_URL` وبيانات Storage Proxy كأسرار GitHub لتشغيل اختبارات التكامل المعتمدة على البيئة بدل تخطيها.
+
+تمت إزالة Analytics script غير الآمن من `client/index.html`؛ كان يعتمد على placeholders غير مستبدلة أثناء البناء. أضيف مكوّن Analytics اختياري لا يحقن السكربت إلا إذا كانت قيمتا `VITE_ANALYTICS_ENDPOINT` و`VITE_ANALYTICS_WEBSITE_ID` موجودتين، وكان endpoint بصيغة HTTPS صحيحة. وبذلك لا تظهر placeholders في artifacts ولا يفشل البناء بسبب مصدر غير معروف.
+
+تم تقسيم حزمة الواجهة إلى chunks منفصلة لـReact وCharts وUI، مع ميزانية حجم صريحة قدرها 600 kB للقطعة الرئيسية. انخفضت القطعة الرئيسية من التحذير السابق إلى نحو 531 kB، وأصبح البناء بلا تحذير متعلق بـAnalytics أو تجاوز الحجم.
+
+تم نقل إعدادات `patchedDependencies` و`overrides` من حقل `pnpm` المهمل داخل `package.json` إلى `pnpm-workspace.yaml`. أصبح `pnpm install --frozen-lockfile` يعمل دون تحذير إعدادات مهملة، مع تحديث lockfile وفق الإعداد المدعوم.
+
+| الفحص | النتيجة |
+|---|---|
+| `pnpm install --frozen-lockfile` | ناجح |
+| `pnpm check` | ناجح |
+| `pnpm test` | ناجح: 95 اختبارًا ناجحًا، و30 اختبارًا متخطيًا لغياب `DATABASE_URL` |
+| `pnpm build` | ناجح دون تحذير Analytics أو تجاوز chunk budget |
+| `git diff --check` | ناجح |
+| Analytics placeholders في artifact | غير موجودة |
+
+> **الحكم:** أصبحت بوابات الجودة قابلة للتشغيل آليًا، وأصبح Analytics اختياريًا وفشلُه مغلقًا، وتحسنت قابلية تحميل الواجهة. يلزم بعد ذلك تفعيل أسرار بيئة الاختبار في GitHub وتشغيل اختبارات التكامل بقاعدة بيانات وStorage حقيقيين، ثم قياس الأداء في بيئة staging.
